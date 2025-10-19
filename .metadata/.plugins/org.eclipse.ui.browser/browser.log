@@ -1,0 +1,6 @@
+
+Oct 19, 2025 12:37:48.19 NEW SESSION
+Oct 19, 2025 12:37:48.19 Created TensorFlow Lite XNNPACK delegate for CPU.
+Oct 19, 2025 12:37:51.11 [7244:22412:1019/123751.116:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+Oct 19, 2025 12:38:20.43 [7244:22412:1019/123820.430:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+Oct 19, 2025 12:39:15.14 [7244:22412:1019/123915.139:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
