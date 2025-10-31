@@ -1,0 +1,223 @@
+package adminServlet;
+
+import DAO.CategoryDAO;
+import DAO.CategoryDAOImpl;
+import DAO.NewsDAO;
+import DAO.NewsDAOImpl;
+import Entity.Category;
+import Entity.News;
+import Entity.User;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
+
+import java.io.File;
+import java.io.IOException;
+import java.sql.Date;
+import java.util.List;
+import java.util.UUID;
+
+// Đặt cấu hình MultipartConfig chi tiết hơn cho file upload lớn
+@WebServlet("/admin/add_edit_news")
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2, // 2MB
+    maxFileSize = 1024 * 1024 * 10,      // 10MB
+    maxRequestSize = 1024 * 1024 * 50    // 50MB
+)
+public class AdminAddEditNewsServlet extends HttpServlet {
+
+    private static final String UPLOAD_DIR = "uploads";
+    // Danh sách các loại file ảnh hợp lệ
+    private static final List<String> ALLOWED_MIME_TYPES =
+        List.of("image/jpeg", "image/png", "image/gif");
+    
+    // Phương thức trợ giúp để chuyển tiếp (forward) khi có lỗi
+    private void forwardWithError(HttpServletRequest req, HttpServletResponse resp, News news, String errorMsg)
+            throws ServletException, IOException {
+        
+        CategoryDAO categoryDAO = new CategoryDAOImpl();
+        req.setAttribute("categories", categoryDAO.findAll());
+        
+        req.setAttribute("news", news); // Giữ lại dữ liệu đã nhập
+        req.setAttribute("errorMessage", errorMsg);
+        
+        // **QUAN TRỌNG:** Forward về form JSP để hiển thị lỗi và dữ liệu cũ.
+        req.getRequestDispatcher("/admin/add_edit_news.jsp").forward(req, resp);
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        resp.setCharacterEncoding("UTF-8");
+        req.setCharacterEncoding("UTF-8");
+
+        CategoryDAO categoryDAO = new CategoryDAOImpl();
+        List<Category> categories = categoryDAO.findAll();
+        req.setAttribute("categories", categories);
+
+        String id = req.getParameter("id");
+        if (id != null && !id.isEmpty()) {
+            NewsDAO newsDAO = new NewsDAOImpl();
+            News news = newsDAO.getById(id);
+            req.setAttribute("news", news);
+        }
+
+        // SỬA LỖI: Sử dụng tên JSP chính xác dựa trên Servlet Mapping
+        req.getRequestDispatcher("/admin/add_edit_news.jsp").forward(req, resp);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        req.setCharacterEncoding("UTF-8");
+        resp.setCharacterEncoding("UTF-8");
+
+        HttpSession session = req.getSession();
+        User user = (User) session.getAttribute("user");
+        
+        // Kiểm tra phiên đăng nhập (Đã có, Tốt)
+        if (user == null) {
+            resp.sendRedirect(req.getContextPath() + "/login");
+            return;
+        }
+
+        // 1. LẤY DỮ LIỆU VÀ KHỞI TẠO ENTITY
+        String id = req.getParameter("id");
+        String title = req.getParameter("title");
+        String content = req.getParameter("content");
+        String categoryId = req.getParameter("categoryId");
+        String postedDateStr = req.getParameter("postedDate");
+        String positionStr = req.getParameter("position");
+        String oldImage = req.getParameter("oldImage");
+        
+        String authorId = user.getId();
+        Integer position = (positionStr != null && !positionStr.isEmpty()) ? Integer.valueOf(positionStr) : null;
+        
+        News news = new News();
+        boolean isUpdating = (id != null && !id.isEmpty());
+        String successMessage = "";
+
+        // **KIỂM TRA TÍNH HỢP LỆ CƠ BẢN**
+        if (title == null || title.trim().isEmpty() || content == null || content.trim().isEmpty() || categoryId == null || categoryId.isEmpty() || postedDateStr == null || postedDateStr.isEmpty()) {
+            news.setId(id); // Giữ ID cho form
+            // Gán lại các giá trị để forward
+            news.setTitle(title); 
+            news.setContent(content);
+            news.setCategoryId(categoryId);
+            news.setImage(oldImage);
+
+            forwardWithError(req, resp, news, "Vui lòng điền đầy đủ các trường bắt buộc (Tiêu đề, Nội dung, Thể loại, Ngày đăng).");
+            return;
+        }
+
+        // 2. XỬ LÝ ID, VIEW, VÀ PHÂN QUYỀN SỬA
+        NewsDAO newsDAO = new NewsDAOImpl();
+        if (isUpdating) {
+            news.setId(id);
+            News oldNews = newsDAO.getById(id);
+            
+            if (oldNews == null) {
+                forwardWithError(req, resp, news, "Không tìm thấy tin tức cần cập nhật!");
+                return;
+            }
+            
+            // **BẢO MẬT: PHÂN QUYỀN SỬA CHO PHÓNG VIÊN**
+            // Nếu không phải Admin (isRole=false) VÀ tác giả tin tức khác ID người dùng hiện tại
+            if (!user.isRole() && !user.getId().equals(oldNews.getAuthor())) {
+                forwardWithError(req, resp, news, "Bạn không có quyền sửa tin tức của tác giả khác!");
+                return;
+            }
+            
+            news.setViewCount(oldNews.getViewCount());
+            news.setStatus(oldNews.getStatus()); // Giữ trạng thái cũ khi sửa
+            news.setHome(oldNews.isHome()); // Giữ cờ Home cũ
+            successMessage = "Cập nhật tin tức thành công!";
+            
+        } else {
+            // Chế độ THÊM MỚI
+            news.setId(UUID.randomUUID().toString());
+            news.setViewCount(0);
+            news.setHome(false);
+            // Mặc định cho tin mới
+            news.setStatus("Chưa duyệt"); 
+            successMessage = "Thêm tin tức mới thành công!";
+        }
+
+
+        // 3. XỬ LÝ FILE UPLOAD & KIỂM TRA MIME
+        Part imagePart = req.getPart("image");
+        String fileName = oldImage; // Giữ ảnh cũ nếu không có ảnh mới
+        String uploadPath = getServletContext().getRealPath(File.separator + UPLOAD_DIR);
+        File uploadDir = new File(uploadPath);
+        
+        if (!uploadDir.exists()) uploadDir.mkdirs();
+
+        if (imagePart != null && imagePart.getSize() > 0 && imagePart.getSubmittedFileName() != null) {
+            String contentType = imagePart.getContentType();
+
+            // **BẢO MẬT: KIỂM TRA MIME TYPE**
+            if (!ALLOWED_MIME_TYPES.contains(contentType)) {
+                news.setImage(oldImage); // Giữ ảnh cũ
+                forwardWithError(req, resp, news, "Lỗi: Loại file không hợp lệ! Chỉ chấp nhận JPEG, PNG, GIF.");
+                return;
+            }
+            
+            // Xóa ảnh cũ trước khi ghi ảnh mới (Tùy chọn, để quản lý dung lượng)
+            // if (oldImage != null && !oldImage.isEmpty() && !oldImage.equals("default.jpg")) {
+            //     File oldFile = new File(uploadPath + File.separator + oldImage);
+            //     if (oldFile.exists()) oldFile.delete();
+            // }
+
+            // Đổi tên file ngẫu nhiên và ghi file
+            String fileExtension = contentType.substring(contentType.lastIndexOf('/') + 1);
+            fileName = UUID.randomUUID().toString() + "." + fileExtension;
+            imagePart.write(uploadPath + File.separator + fileName);
+            
+        } else if (fileName == null || fileName.isEmpty()) {
+             // Trường hợp thêm mới mà không có ảnh, dùng default.jpg
+             fileName = "default.jpg"; 
+        }
+
+        // 4. GÁN DỮ LIỆU CUỐI CÙNG VÀO ENTITY
+        // **KHUYẾN NGHỊ: Thêm logic SANITIZE (lọc) cho title/content TẠI ĐÂY**
+        // news.setTitle(Sanitizer.clean(title));
+        news.setTitle(title); 
+        news.setContent(content);
+        news.setImage(fileName);
+        
+        try {
+            news.setPostedDate(Date.valueOf(postedDateStr));
+        } catch (IllegalArgumentException e) {
+            // Xử lý nếu ngày không hợp lệ
+            forwardWithError(req, resp, news, "Định dạng Ngày đăng không hợp lệ.");
+            return;
+        }
+        
+        news.setAuthor(authorId);
+        news.setCategoryId(categoryId);
+        news.setPosition(position);
+        
+        // 5. GỌI DAO VÀ CHUYỂN HƯỚNG
+        boolean result = isUpdating ? newsDAO.update(news) : newsDAO.insert(news);
+
+        if (result) {
+            String redirectURL = user.isRole()
+                ? req.getContextPath() + "/admin/manage_all_news?message=" + successMessage
+                : req.getContextPath() + "/reporter/manage_my_news?message=" + successMessage;
+                
+            resp.sendRedirect(redirectURL);
+            
+        } else {
+            // Xử lý thất bại (Lỗi DB hoặc lỗi logic khác)
+            forwardWithError(req, resp, news, "Lỗi hệ thống: Lưu tin thất bại! Vui lòng kiểm tra lại kết nối Database.");
+        }
+    }
+}

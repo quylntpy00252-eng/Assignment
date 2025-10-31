@@ -1,0 +1,122 @@
+package Entity;
+
+import java.sql.Date;
+
+// Entity đại diện cho bảng NEWS (Đã cập nhật đầy đủ các trường hiển thị và quản lý)
+public class News {
+    private String id;
+    private String title;
+    private String summary; // ✅ Đã thêm lại trường Summary để khớp với form/DAO
+    private String content;
+    private String image;
+    private Date postedDate;
+    
+    // Khóa ngoại
+    private String author;
+    private String categoryId;
+    
+    // Thông tin bổ sung (từ Join)
+    private String authorName;   // Dùng để hiển thị tên tác giả
+    private String categoryName; // Dùng để hiển thị tên thể loại
+    
+    // Cột trong CSDL
+    private int viewCount;
+    private boolean home;
+    private Integer position;    // Sử dụng Integer để cho phép giá trị NULL từ SQL
+    private String status;
+    
+    // Thuộc tính quản lý logic (Không cần thiết phải có trong SQL, trừ khi bạn muốn lưu trữ)
+    private boolean isFeatured;
+    private boolean isApproved;
+    private boolean isEmailed;
+
+    // Constructors
+    public News() {}
+
+    // Lưu ý: Constructor này chưa bao gồm tất cả các trường mới (summary, authorName,...)
+    public News(String id, String title, String content, String image, Date postedDate,
+                String author, int viewCount, String categoryId, boolean home, Integer position, String status) {
+        this.id = id;
+        this.title = title;
+        this.content = content;
+        this.image = image;
+        this.postedDate = postedDate;
+        this.author = author;
+        this.viewCount = viewCount;
+        this.categoryId = categoryId;
+        this.home = home;
+        this.position = position;
+        this.status = status;
+    }
+
+    // --- GETTERS AND SETTERS ---
+    
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+    
+    public String getSummary() { return summary; }
+    public void setSummary(String summary) { this.summary = summary; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+
+    public String getImage() { return image; }
+    public void setImage(String image) { this.image = image; }
+
+    public Date getPostedDate() { return postedDate; }
+    public void setPostedDate(Date postedDate) { this.postedDate = postedDate; } // ✅ Sửa tên tham số
+
+    public String getAuthor() { return author; }
+    public void setAuthor(String author) { this.author = author; }
+
+    public int getViewCount() { return viewCount; }
+    public void setViewCount(int viewCount) { this.viewCount = viewCount; }
+
+    public String getCategoryId() { return categoryId; }
+    public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+
+    public String getCategoryName() { return categoryName; }
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
+
+    public boolean isHome() { return home; }
+    public void setHome(boolean home) { this.home = home; }
+
+    public Integer getPosition() { return position; }
+    public void setPosition(Integer position) { this.position = position; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getAuthorName() { return authorName; }
+    public void setAuthorName(String authorName) { this.authorName = authorName; }
+    
+    // Phương thức utility: Tạo tóm tắt ngắn từ content cho mục đích hiển thị
+    public String getShortSummaryForDisplay() {
+        if (content == null || content.isEmpty()) return summary != null ? summary : "";
+        
+        // Ưu tiên dùng trường summary nếu nó có dữ liệu
+        String source = (summary != null && !summary.isEmpty()) ? summary : content;
+        
+        return source.length() > 120 ? source.substring(0, 120) + "..." : source;
+    }
+    
+    // Các setters/getters cho logic ứng dụng
+    public boolean isFeatured() { return isFeatured; }
+    public void setFeatured(boolean isFeatured) { this.isFeatured = isFeatured; }
+
+    public boolean isApproved() { return isApproved; }
+    public void setApproved(boolean isApproved) { this.isApproved = isApproved; }
+
+    public boolean isEmailed() { return isEmailed; }
+    public void setEmailed(boolean isEmailed) { this.isEmailed = isEmailed; }
+    
+    public Date getPublishDate() { return postedDate; }
+    
+    @Override
+    public String toString() {
+        return "News{id=" + id + ", title='" + title + "', categoryId=" + categoryId + ", status=" + status + '}';
+    }
+}

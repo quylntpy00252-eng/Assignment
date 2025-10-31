@@ -1,0 +1,179 @@
+<%@ page contentType="text/html; charset=UTF-8" language="java" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABC News - Đăng Nhập Hệ Thống</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+
+    <style>
+        /* ================================================= */
+        /* CƠ SỞ CHUNG & NỀN (Đồng bộ) */
+        /* ================================================= */
+        body {
+            background-color: #1a2a47; /* Xanh Navy Sâu làm nền toàn bộ trang login */
+            color: #495057;
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* ================================================= */
+        /* FORM ĐĂNG NHẬP (Đồng bộ) */
+        /* ================================================= */
+        .login-container {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .login-logo {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a2a47; /* Xanh Navy */
+            margin-bottom: 30px;
+        }
+
+        .login-logo span {
+            color: #fcc419; /* Vàng ấm */
+        }
+
+        .login-container h2 {
+            font-size: 20px;
+            color: #6c757d;
+            font-weight: 400;
+            margin-bottom: 25px;
+        }
+        
+        /* Message (Lỗi/Thông báo) */
+        .message-box {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: left;
+        }
+        .error-message {
+            color: #e53935; /* Đỏ */
+            background-color: #fcebeb;
+            border: 1px solid #e53935;
+        }
+        .success-message {
+            color: #28a745; /* Xanh lá */
+            background-color: #e8f9ed;
+            border: 1px solid #28a745;
+        }
+
+        /* Form Group */
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 16px;
+            color: #495057;
+            background-color: #f8f9fa;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: #fcc419; /* Vàng ấm khi focus */
+            box-shadow: 0 0 0 3px rgba(252, 196, 25, 0.25);
+            outline: none;
+            background-color: #ffffff;
+        }
+
+        /* Nút Đăng nhập */
+        .submit-btn {
+            width: 100%;
+            padding: 14px 25px;
+            background: #fcc419; /* Vàng ấm */
+            color: #1a2a47; /* Chữ Xanh Navy đậm */
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 4px 12px rgba(252, 196, 25, 0.3);
+        }
+
+        .submit-btn:hover {
+            background: #ffbe00;
+            transform: translateY(-1px);
+        }
+
+        .forgot-pass {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .forgot-pass a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .forgot-pass a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-logo">ABC <span>News</span></div>
+    <h2>Đăng nhập hệ thống quản trị</h2>
+
+    <%-- Hiển thị thông báo lỗi (ví dụ: đăng nhập thất bại) --%>
+    <c:if test="${param.error == 1}">
+        <div class="message-box error-message">
+            Email hoặc mật khẩu không đúng. Vui lòng thử lại.
+        </div>
+    </c:if>
+    
+    <%-- Hiển thị thông báo khi đăng xuất/yêu cầu đăng nhập --%>
+    <c:if test="${param.msg == 'required'}">
+        <div class="message-box error-message">
+            Phiên làm việc đã hết hạn hoặc bạn cần đăng nhập để tiếp tục.
+        </div>
+    </c:if>
+
+    <form action="${pageContext.request.contextPath}/login" method="post">
+        <div class="form-group">
+            <input type="email" id="email" name="email"
+                   placeholder="Email đăng nhập" required>
+        </div>
+        <div class="form-group">
+            <input type="password" id="password" name="password"
+                   placeholder="Mật khẩu" required>
+        </div>
+        <button type="submit" class="submit-btn">Đăng nhập</button>
+    </form>
+
+    <div class="forgot-pass">
+        <a href="${pageContext.request.contextPath}/index">Quay lại Trang chủ</a>
+    </div>
+</div>
+
+</body>
+</html>

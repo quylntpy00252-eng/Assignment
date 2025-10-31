@@ -1,0 +1,50 @@
+package adminServlet;
+
+import java.io.IOException;
+import java.util.List;
+
+import DAO.NewsDAO;
+import DAO.NewsDAOImpl;
+import DAO.UserDAO;
+import DAO.UserDAOImpl;
+import DAO.CategoryDAO; // Thêm import này
+import DAO.CategoryDAOImpl; // Thêm import này
+import Entity.Category; // Thêm import này
+import Entity.News;
+import Entity.User;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+@WebServlet("/admin")
+public class AdminServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        // 1. KHỞI TẠO CATEGORY DAO VÀ TRUYỀN DỮ LIỆU CHO MENU
+        CategoryDAO categoryDAO = new CategoryDAOImpl();
+        List<Category> categories = categoryDAO.findAll();
+        request.setAttribute("categories", categories); // <-- Dòng FIX lỗi Menu
+        
+        // 2. KHỞI TẠO CÁC DAO KHÁC
+        NewsDAO newsDAO = new NewsDAOImpl();
+        UserDAO userDAO = new UserDAOImpl();
+        
+        // 3. TRUYỀN DỮ LIỆU NGƯỜI DÙNG
+        List<User> users = userDAO.findAll();
+        request.setAttribute("users", users);
+        
+        // 4. TRUYỀN DỮ LIỆU TIN TỨC CHO CÁC CỘT (Cũng FIX lỗi cột trắng)
+        List<News> homeLeft = newsDAO.findHomeByPosition(1);    // vị trí cột trái
+        List<News> homeCenter = newsDAO.findHomeByPosition(2); 
+        
+        request.setAttribute("homeLeft", homeLeft);
+        request.setAttribute("homeCenter", homeCenter);
+        
+        // 5. CHUYỂN TIẾP ĐẾN JSP
+        request.getRequestDispatcher("/admin/admin.jsp").forward(request, response);
+    }
+}

@@ -13,6 +13,122 @@
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+    <style>
+    <style>
+    /* ================================================= */
+    /* CƠ SỞ CHUNG: Thiết lập lại các màu đồng bộ */
+    /* ================================================= */
+    body {
+        font-family: 'Open Sans', 'Roboto', sans-serif;
+        color: #333d48; /* Chữ chính màu xám xanh đậm */
+        background-color: #f8f9fa; /* Nền trắng xám nhẹ */
+    }
+
+    h2 {
+        color: #1a2a47; /* Xanh Navy Sâu - Tiêu đề phần chính */
+        font-weight: 700;
+        font-size: 28px;
+        margin-bottom: 5px;
+    }
+
+    /* ================================================= */
+    /* HEADER (Đảm bảo đồng bộ ngay cả khi chưa có news_index_nav.jsp) */
+    /* ================================================= */
+    .site-header {
+        background-color: #1a2a47; /* Xanh Navy Sâu, chuyên nghiệp */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .logo { color: #ffffff; font-weight: 700; font-size: 24px; }
+    .logo span { color: #fcc419; } /* Vàng ấm */
+
+    /* Đường phân cách */
+    hr {
+        border: none;
+        height: 2px;
+        background-color: #e9ecef;
+        margin-bottom: 25px;
+    }
+    
+    /* Không tìm thấy kết quả */
+    .left-col > p {
+        font-style: italic;
+        color: #6c757d;
+        padding: 20px;
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    /* ================================================= */
+    /* MỤC KẾT QUẢ TÌM KIẾM CỤ THỂ (.news-item) */
+    /* ================================================= */
+    .news-item {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px dashed #ced4da; /* Đường nét đứt nhẹ */
+        background-color: #ffffff; /* Nền trắng cho mỗi mục */
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: box-shadow 0.3s ease;
+    }
+    .news-item:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .news-thumb {
+        width: 150px; /* Kích thước ảnh thumb cố định */
+        height: 100px;
+        object-fit: cover;
+        border-radius: 6px;
+        flex-shrink: 0;
+    }
+
+    .news-content {
+        flex-grow: 1;
+    }
+
+    .news-content h3 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 18px;
+    }
+
+    .news-content h3 a {
+        color: #1a2a47; /* Tiêu đề tin tức màu Xanh Navy */
+        font-weight: 600;
+        transition: color 0.2s;
+    }
+
+    .news-content h3 a:hover {
+        color: #fcc419; /* Hover màu Vàng ấm nổi bật */
+    }
+
+    .news-content p {
+        color: #6c757d; /* Mô tả màu xám dịu */
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 10px;
+    }
+
+    .news-meta {
+        font-size: 12px;
+        color: #99a3b1; /* Màu chữ meta nhẹ nhàng */
+        font-style: italic;
+    }
+    
+    /* Điều chỉnh lại bố cục chung */
+    .left-col {
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+</style>
+    </style>
 </head>
 <body>
 
@@ -20,7 +136,7 @@
 <header class="site-header">
     <div class="container">
         <div class="logo">ABC <span>News</span></div>
-        <jsp:include page="/includes/news_index_nav.jsp" />
+        <jsp:include page="../includes/news_index_nav.jsp" />
     </div>
 </header>
 

@@ -58,22 +58,21 @@
     <header class="site-header">
         <div class="container">
             <div class="logo">ABC <span>News</span></div>
-            <nav class="menu">
+ <nav class="menu">
     <a href="${pageContext.request.contextPath}/index"
-       class="${fn:contains(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
+       class="${fn:endsWith(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
 
-   <a href="${pageContext.request.contextPath}/category?name=Văn hóa"
-   class="${fn:contains(pageContext.request.requestURI, 'Văn hóa') ? 'active' : ''}">Văn hóa</a>
+    <%-- KHỐI CODE ĐÃ SỬA: TỰ ĐỘNG TẠO MENU DỰA TRÊN CATEGORIES --%>
+    <%-- Bạn cần đảm bảo biến ${categories} đã được truyền từ Servlet vào Request Scope --%>
+    <c:forEach var="c" items="${categories}">
+        <a href="${pageContext.request.contextPath}/category?name=${c.name}"
+           class="${fn:contains(pageContext.request.requestURI, c.name) ? 'active' : ''}">
+            ${c.name}
+        </a>
+    </c:forEach>
 
-<a href="${pageContext.request.contextPath}/category?name=Pháp luật"
-   class="${fn:contains(pageContext.request.requestURI, 'Pháp luật') ? 'active' : ''}">Pháp luật</a>
-
-<a href="${pageContext.request.contextPath}/category?name=Thể thao"
-   class="${fn:contains(pageContext.request.requestURI, 'Thể thao') ? 'active' : ''}">Thể thao</a>
-
-
-    <a href="${pageContext.request.contextPath}/reporter"
-       class="${fn:contains(pageContext.request.requestURI, '/admin') ? 'active' : ''}">Quản lý tin</a>
+   <a href="${pageContext.request.contextPath}/reporter" 
+       class="${fn:contains(pageContext.request.requestURI, '/admin') ? 'active' : ''}">Quản lý tin</a> 
 </nav>
 
             <div class="header-actions">

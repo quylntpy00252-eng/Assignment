@@ -10,27 +10,32 @@
     <title>ABC News</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
-    <style>
+
+<style>
+    /* ================================================= */
+    /* CƠ SỞ CHUNG: Đồng bộ với trang Quản trị */
+    /* ================================================= */
     body {
+        /* Nền trắng, nhưng chữ được tối ưu để đồng bộ với tông Xanh Navy */
         font-family: 'Open Sans', 'Roboto', sans-serif;
         font-size: 16px;
-        color: #222;
+        color: #333d48; /* Chữ chính màu xám xanh đậm, dịu hơn #222 */
         line-height: 1.6;
         letter-spacing: 0.3px;
-        background-color: #fff;
+        background-color: #f8f9fa; /* Nền trắng xám nhẹ, chuyên nghiệp */
     }
 
     h1, h2, h3, h4, h5 {
         font-family: 'Roboto', sans-serif;
         font-weight: 700;
-        color: #111;
+        color: #1a2a47; /* Xanh Navy Sâu - Màu tiêu đề chính */
         letter-spacing: 0.5px;
     }
 
     a, button {
         font-family: 'Roboto', sans-serif;
         text-decoration: none;
-        color: #007bff;
+        color: #007bff; /* Giữ màu xanh dương cho link thông thường */
         transition: color 0.2s ease;
     }
     a:hover, button:hover {
@@ -40,12 +45,96 @@
     p {
         font-family: 'Open Sans', sans-serif;
         font-weight: 400;
-        color: #333;
+        color: #495057; /* Màu chữ nội dung */
         margin-bottom: 1em;
     }
 
     label, input, button, .form-group {
         font-family: 'Open Sans', sans-serif;
+    }
+
+    /* ================================================= */
+    /* HEADER (Đảm bảo đồng bộ ngay cả khi chưa có news_index_nav.jsp) */
+    /* ================================================= */
+    .site-header {
+        background-color: #1a2a47; /* Xanh Navy Sâu, chuyên nghiệp */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .logo { color: #ffffff; font-weight: 700; font-size: 24px; }
+    .logo span { color: #fcc419; } /* Vàng ấm */
+
+
+    /* ================================================= */
+    /* MODAL ĐĂNG NHẬP (login-modal) */
+    /* ================================================= */
+    .modal {
+        background: rgba(26, 42, 71, 0.85); /* Overlay Xanh Navy đậm hơn */
+    }
+    .modal-content {
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        width: 380px;
+        padding: 35px 30px;
+    }
+    .modal-content h2 {
+        color: #1a2a47; /* Xanh Navy Sâu */
+        border-bottom: 2px solid #fcc419; /* Vàng ấm làm điểm nhấn */
+        padding-bottom: 8px;
+        margin-bottom: 15px;
+        font-size: 24px;
+    }
+    .modal-content p {
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 25px;
+    }
+    .close-btn {
+        color: #adb5bd;
+        font-size: 30px;
+    }
+    .close-btn:hover {
+        color: #dc3545;
+    }
+
+    /* Form Inputs */
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    .modal-content input[type="email"],
+    .modal-content input[type="password"] {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 18px;
+        border: 1px solid #ced4da;
+        border-radius: 8px;
+        font-size: 15px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .modal-content input:focus {
+        border-color: #fcc419; /* Focus với màu Vàng ấm */
+        box-shadow: 0 0 0 0.2rem rgba(252, 196, 25, 0.25);
+        outline: none;
+    }
+
+    /* Nút Đăng nhập */
+    .submit-btn {
+        width: 100%;
+        padding: 12px 25px;
+        background: #1a2a47; /* Màu Xanh Navy Sâu */
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.3s, box-shadow 0.3s;
+    }
+    .submit-btn:hover {
+        background: #273e63; /* Xanh Navy nhạt hơn một chút khi hover */
+        box-shadow: 0 4px 10px rgba(26, 42, 71, 0.3);
     }
 </style>
     

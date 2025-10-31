@@ -1,0 +1,169 @@
+package reporterServlet;
+import DAO.CategoryDAO;
+import DAO.CategoryDAOImpl;
+import DAO.NewsDAO;
+import DAO.NewsDAOImpl;
+import Entity.Category;
+import Entity.News;
+import Entity.User;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
+
+import java.io.File;
+import java.io.IOException;
+import java.sql.Date;
+import java.util.List;
+import java.util.UUID;
+
+// Mapping chung cho việc Thêm và Sửa tin tức
+@WebServlet("/add_edit_news") 
+@MultipartConfig(
+        fileSizeThreshold = 1024 * 1024 * 2,  // 2MB
+        maxFileSize = 1024 * 1024 * 10,       // 10MB
+        maxRequestSize = 1024 * 1024 * 50     // 50MB
+)
+public class AddEditNewsController extends HttpServlet {
+
+    private final NewsDAO newsDAO = new NewsDAOImpl();
+    private final CategoryDAO categoryDAO = new CategoryDAOImpl();
+    
+    // ===================================================
+    // Xử lý GET: Hiển thị Form Thêm (nếu không có id) hoặc Form Sửa (nếu có id)
+    // ===================================================
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        // Lấy danh sách thể loại để điền vào dropdown
+        List<Category> categories = categoryDAO.findAll();
+        req.setAttribute("categories", categories);
+
+        String id = req.getParameter("id");
+        if (id != null && !id.isEmpty()) {
+            // Trường hợp SỬA TIN: Lấy thông tin tin tức hiện tại
+            News news = newsDAO.findById(id);
+            req.setAttribute("news", news);
+        }
+
+        // Forward đến trang JSP Form (Code 1)
+        req.getRequestDispatcher("/jsp/add_edit_news.jsp").forward(req, resp);
+    }
+
+    // ===================================================
+    // Xử lý POST: Xử lý Lưu (Insert) hoặc Cập nhật (Update) tin tức
+    // ===================================================
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        req.setCharacterEncoding("UTF-8");
+        
+        HttpSession session = req.getSession();
+        User user = (User) session.getAttribute("user");
+
+        // BẢO MẬT: Kiểm tra người dùng đã đăng nhập chưa
+        if (user == null) {
+            resp.sendRedirect(req.getContextPath() + "/login");
+            return;
+        }
+
+        // 1. Lấy dữ liệu từ Form
+        String id = req.getParameter("id"); // Sẽ là null nếu là Thêm mới
+        String title = req.getParameter("title");
+        String content = req.getParameter("content");
+        String categoryId = req.getParameter("categoryId");
+        String postedDateStr = req.getParameter("postedDate"); 
+        String oldImage = req.getParameter("oldImage");
+        
+        // Chỉ Admin có quyền thiết lập các trường này (Home/Position/Status).
+        // Nếu là Reporter thì giá trị này sẽ không được sử dụng.
+        String positionStr = req.getParameter("position"); 
+        String status = req.getParameter("status"); 
+        
+        Integer position = (positionStr != null && !positionStr.isEmpty()) ? Integer.valueOf(positionStr) : null;
+        
+
+        // 2. Xử lý Upload Ảnh
+        String fileName = oldImage; // Giả sử giữ lại ảnh cũ
+        Part imagePart = req.getPart("image");
+        String uploadPath = getServletContext().getRealPath("/uploads");
+        File uploadDir = new File(uploadPath);
+        if (!uploadDir.exists()) uploadDir.mkdirs();
+
+        if (imagePart != null && imagePart.getSize() > 0) {
+            // Nếu có ảnh mới, tạo tên file duy nhất và lưu
+            String submittedFileName = imagePart.getSubmittedFileName();
+            if (submittedFileName != null && !submittedFileName.isEmpty()) {
+                fileName = UUID.randomUUID() + "_" + submittedFileName;
+                imagePart.write(uploadPath + File.separator + fileName);
+            }
+        } 
+        
+        // 3. Tạo/Cập nhật đối tượng News
+        try {
+            Date postedDate = Date.valueOf(postedDateStr);
+            News news = new News();
+            
+            // Nếu id rỗng là Thêm mới, ngược lại là Sửa
+            news.setId((id == null || id.isEmpty()) ? UUID.randomUUID().toString() : id); 
+            news.setTitle(title);
+            news.setContent(content);
+            news.setImage(fileName != null ? fileName : "default.jpg");
+            news.setPostedDate(postedDate);
+            news.setAuthor(user.getId()); // Gán tác giả là người đang đăng nhập
+            news.setCategoryId(categoryId);
+            
+            // Xử lý các trường chỉ Admin quan tâm (hoặc mặc định cho Phóng viên)
+            if (user.isRole()) {
+                news.setPosition(position);
+                news.setStatus(status != null ? status : "Đã duyệt"); // Admin mặc định duyệt
+            } else {
+                // Phóng viên chỉ có thể gửi tin, trạng thái mặc định là "Chờ duyệt"
+                news.setPosition(null);
+                news.setStatus("Chờ duyệt"); 
+            }
+            
+            // Giữ lại viewCount cũ (nếu có)
+            News existingNews = newsDAO.findById(news.getId());
+            news.setViewCount(existingNews != null ? existingNews.getViewCount() : 0);
+            
+            
+            // 4. Lưu vào Database
+            boolean result;
+            if (id == null || id.isEmpty()) {
+                result = newsDAO.insert(news); // Thêm mới
+            } else {
+                result = newsDAO.update(news); // Cập nhật
+            }
+            
+            // 5. Điều hướng sau khi lưu thành công
+            if (result) {
+                if (user.isRole()) {
+                    // Admin: Chuyển về trang danh sách TẤT CẢ tin
+                    resp.sendRedirect(req.getContextPath() + "/admin/manage_all_news?success=true");
+                } else {
+                    // Phóng viên: Chuyển về trang danh sách TIN CỦA MÌNH
+                    resp.sendRedirect(req.getContextPath() + "/reporter/manage_my_news?success=true"); 
+                }
+            } else {
+                // Xử lý lỗi
+                 req.getSession().setAttribute("message", "Lưu tin thất bại!");
+                 // Quay lại form sửa nếu có id, hoặc form thêm nếu không có id
+                 String redirectUrl = (id == null || id.isEmpty()) ? "/add_edit_news" : "/add_edit_news?id=" + id;
+                 resp.sendRedirect(req.getContextPath() + redirectUrl + "&error=true");
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            req.getSession().setAttribute("message", "Lỗi dữ liệu hoặc server: " + e.getMessage());
+            resp.sendRedirect(req.getContextPath() + "/add_edit_news?id=" + id + "&error=true");
+        }
+    }
+}

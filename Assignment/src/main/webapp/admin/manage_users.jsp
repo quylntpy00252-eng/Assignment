@@ -22,126 +22,216 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
     <style>
+/* ================================================= */
+/* CƠ SỞ CHUNG (Đồng bộ với các trang Admin khác) */
+/* ================================================= */
+body {
+    background-color: #eef1f5; /* Nền xám nhạt hiện đại */
+    color: #495057; /* Màu chữ chính */
+    font-family: 'Roboto', sans-serif;
+}
+body.modal-open { overflow: hidden; }
+
+/* HEADER & MENU (Giả định đã có CSS chung) */
+.site-header { background-color: #1a2a47; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+.logo { color: #ffffff; font-weight: 700; }
+.logo span { color: #fcc419; }
+.logout-btn { background: #e53935; color: white; }
+
+/* CỘT NỘI DUNG CHÍNH */
+.center-col {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-top: 15px;
+}
+.center-col h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a2a47; /* Xanh Navy Sâu */
+    margin-bottom: 25px;
+    border-bottom: 3px solid #fcc419; /* Vàng ấm nổi bật */
+    padding-bottom: 10px;
+}
+
+/* ================================================= */
+/* THANH HÀNH ĐỘNG & NÚT THÊM (Đồng bộ với Quản lý tin tức) */
+/* ================================================= */
+.action-bar { margin-bottom: 20px; }
+.action-bar .add-news-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #1a2a47; /* Xanh Navy Sâu */
+    color: #FFFFFF;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 700;
+    transition: background 0.3s, transform 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.action-bar .add-news-btn:hover {
+    background: #273e63;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ================================================= */
+/* BẢNG & NÚT HÀNH ĐỘNG TRONG BẢNG */
+/* ================================================= */
+.news-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.news-table thead th {
+    background: #1a2a47; /* Xanh Navy Sâu */
+    color: #FFFFFF;
+    padding: 15px 10px;
+    text-align: left;
+    font-weight: 600;
+}
+.news-table tbody tr { border-bottom: 1px solid #e9ecef; }
+.news-table tbody tr:hover { background: #f1f4f8; }
+.news-table td { padding: 12px 10px; vertical-align: middle; color: #495057; }
+
+/* Nút Sửa */
+.edit-btn {
+    background-color: #007bff; /* Xanh dương tiêu chuẩn */
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #fff;
+    margin-right: 5px;
+    transition: all 0.2s ease-in-out;
+}
+.edit-btn:hover { background-color: #0056b3; }
+
+/* Nút Xóa */
+.delete-btn {
+    background-color: #e53935; /* Đỏ dịu */
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.2s ease-in-out;
+}
+.delete-btn:hover { background-color: #c62828; }
+
+/* ================================================= */
+/* MODAL (Popup) - Đã thay đổi custom- thành đồng bộ */
+/* ================================================= */
 .custom-modal {
     display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    align-items: center;
+    position: fixed; inset: 0;
+    background: rgba(26, 42, 71, 0.8); /* Xanh Navy mờ */
     justify-content: center;
+    align-items: center;
+    z-index: 10000;
     overflow-y: auto;
 }
 
 .custom-modal-content {
     background: #fff;
     border-radius: 12px;
-    padding: 32px 36px;
+    padding: 30px;
     width: 100%;
-    max-width: 420px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
-    text-align: center;
+    max-width: 450px; /* Tăng nhẹ để phù hợp form dài hơn */
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     position: relative;
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from {
-        transform: translateY(-20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+    animation: fadeIn 0.3s ease-in-out;
+    margin: 40px 15px; /* Thêm margin cho mobile */
 }
 
 .custom-close-btn {
-    position: absolute;
-    top: 12px;
-    right: 18px;
-    font-size: 22px;
-    color: #666;
+    position: absolute; top: 12px; right: 18px;
+    font-size: 30px;
+    font-weight: 300;
+    color: #adb5bd;
     cursor: pointer;
-    transition: color 0.3s;
+    line-height: 1;
+    transition: color 0.2s;
 }
-.custom-close-btn:hover {
-    color: #e53935;
-}
+.custom-close-btn:hover { color: #dc3545; }
 
 .custom-modal-content h2 {
-    color: #1a237e;
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 8px;
+    color: #1a2a47; /* Xanh Navy Sâu */
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 10px;
 }
 
+/* Form */
 .custom-form-group {
     text-align: left;
-    margin-bottom: 16px;
+    margin-bottom: 15px;
 }
 
 .custom-form-group label {
     display: block;
     margin-bottom: 6px;
     font-weight: 600;
-    font-size: 14px;
-    color: #1a237e;
+    font-size: 15px;
+    color: #1a2a47; /* Xanh Navy Sâu */
 }
 
 .custom-form-group input,
-.custom-form-group select,
-.custom-form-group textarea {
+.custom-form-group select {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid #d0d7de;
+    border: 1px solid #ced4da;
     border-radius: 6px;
-    background-color: #f5f9ff;
-    font-size: 14px;
-    transition: border 0.3s, box-shadow 0.3s;
+    background-color: #f8f9fa; /* Nền input xám nhẹ */
+    font-size: 15px;
+    transition: border-color 0.2s, box-shadow 0.2s;
     box-sizing: border-box;
 }
 
 .custom-form-group input:focus,
-.custom-form-group select:focus,
-.custom-form-group textarea:focus {
-    border-color: #1a73e8;
-    box-shadow: 0 0 5px rgba(26, 115, 232, 0.4);
+.custom-form-group select:focus {
+    border-color: #fcc419; /* Vàng ấm khi focus */
+    box-shadow: 0 0 0 0.2rem rgba(252, 196, 25, 0.25);
     outline: none;
 }
 
+/* Nút Submit */
 .custom-submit-btn {
     width: 100%;
-    background-color: #f9a825;
+    padding: 12px 20px;
+    background: #fcc419; /* Vàng ấm */
+    color: #1a2a47; /* Chữ Xanh Navy */
     border: none;
-    padding: 12px;
-    color: #fff;
-    font-weight: 600;
+    border-radius: 8px;
+    font-weight: 700;
     font-size: 16px;
-    border-radius: 6px;
     cursor: pointer;
     transition: background 0.3s, transform 0.2s;
+    box-shadow: 0 4px 8px rgba(252, 196, 25, 0.3);
+    margin-top: 10px;
 }
 .custom-submit-btn:hover {
-    background-color: #f57f17;
-    transform: translateY(-2px);
+    background: #ffbe00;
+    transform: translateY(-1px);
 }
 
-@media (max-width: 768px) {
-    .custom-modal-content {
-        width: 90%;
-        padding: 24px;
-    }
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
-
-body.modal-open {
-    overflow: hidden;
-}
-
-    </style>
+</style>
 </head>
 
 <body>
@@ -150,22 +240,23 @@ body.modal-open {
         <div class="container">
             <div class="logo">ABC <span>News</span></div>
 
-            <nav class="menu">
-                <a href="${pageContext.request.contextPath}/index"
-                   class="${fn:contains(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
+<nav class="menu">
+    <a href="${pageContext.request.contextPath}/index"
+       class="${fn:contains(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
 
-               <a href="${pageContext.request.contextPath}/category?name=Văn hóa"
-   class="${fn:contains(pageContext.request.requestURI, 'Văn hóa') ? 'active' : ''}">Văn hóa</a>
+    <%-- KHỐI CODE ĐÃ SỬA: TỰ ĐỘNG TẠO MENU DỰA TRÊN CATEGORIES --%>
+    <c:forEach var="c" items="${categories}">
+        <a href="${pageContext.request.contextPath}/category?name=${c.name}"
+           class="${fn:contains(pageContext.request.requestURI, c.name) ? 'active' : ''}">
+            ${c.name}
+        </a>
+    </c:forEach>
+    <%-- KẾT THÚC KHỐI TỰ ĐỘNG TẠO MENU --%>
 
-<a href="${pageContext.request.contextPath}/category?name=Pháp luật"
-   class="${fn:contains(pageContext.request.requestURI, 'Pháp luật') ? 'active' : ''}">Pháp luật</a>
 
-<a href="${pageContext.request.contextPath}/category?name=Thể thao"
-   class="${fn:contains(pageContext.request.requestURI, 'Thể thao') ? 'active' : ''}">Thể thao</a>
-               
-                <a href="${pageContext.request.contextPath}/admin"
-                   class="${fn:contains(pageContext.request.requestURI, '/admin') ? 'active' : ''}">Quản trị</a>
-            </nav>
+    <a href="${pageContext.request.contextPath}/admin"
+       class="${fn:contains(pageContext.request.requestURI, '/admin') ? 'active' : ''}">Quản trị</a>
+</nav>
 
             <div class="header-actions">
                 Xin chào <strong><%= fullname %></strong>

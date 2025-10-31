@@ -1,0 +1,177 @@
+package adminServlet;
+
+import DAO.CategoryDAO;
+import DAO.CategoryDAOImpl;
+import DAO.NewsDAO;
+import DAO.NewsDAOImpl;
+import Entity.Category;
+import Entity.News;
+import Entity.User;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
+
+import java.io.File;
+import java.io.IOException;
+import java.sql.Date;
+import java.util.List;
+import java.util.UUID;
+
+// Đặt cấu hình MultipartConfig chi tiết hơn cho file upload lớn
+@WebServlet("/admin/add_edit_news")
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2, // 2MB
+    maxFileSize = 1024 * 1024 * 10,      // 10MB
+    maxRequestSize = 1024 * 1024 * 50    // 50MB
+)
+public class AdminAddEditNewsServlet extends HttpServlet {
+
+    private static final String UPLOAD_DIR = "uploads";
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        resp.setCharacterEncoding("UTF-8");
+        req.setCharacterEncoding("UTF-8");
+
+        CategoryDAO categoryDAO = new CategoryDAOImpl();
+        List<Category> categories = categoryDAO.findAll();
+        req.setAttribute("categories", categories);
+
+        String id = req.getParameter("id");
+        if (id != null && !id.isEmpty()) {
+            NewsDAO newsDAO = new NewsDAOImpl();
+            News news = newsDAO.getById(id); 
+            req.setAttribute("news", news);
+        }
+
+        req.getRequestDispatcher("/admin/edit_news.jsp").forward(req, resp);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        req.setCharacterEncoding("UTF-8");
+        resp.setCharacterEncoding("UTF-8");
+
+        HttpSession session = req.getSession();
+        User user = (User) session.getAttribute("user");
+
+        if (user == null) {
+            resp.sendRedirect(req.getContextPath() + "/login");
+            return;
+        }
+
+        // =============================================================
+        // 1. LẤY DỮ LIỆU TỪ FORM
+        // =============================================================
+        String id = req.getParameter("id");
+        String title = req.getParameter("title");
+        String content = req.getParameter("content");
+        String categoryId = req.getParameter("categoryId");
+        String postedDateStr = req.getParameter("postedDate");
+        String positionStr = req.getParameter("position");
+        
+        String oldImage = req.getParameter("oldImage");
+        String authorId = user.getId();
+        
+        String status = req.getParameter("status"); 
+        
+        Integer position = (positionStr != null && !positionStr.isEmpty()) ? Integer.valueOf(positionStr) : null;
+        boolean home = false; 
+
+        // =============================================================
+        // 2. XỬ LÝ ID VÀ VIEWS
+        // =============================================================
+        NewsDAO newsDAO = new NewsDAOImpl();
+        News news = new News();
+        boolean isUpdating = (id != null && !id.isEmpty());
+        String successMessage = "";
+        
+        if (isUpdating) {
+            news.setId(id);
+            News oldNews = newsDAO.getById(id);
+            if (oldNews != null) {
+                news.setViewCount(oldNews.getViewCount());
+                successMessage = "Cập nhật tin tức thành công!";
+            } else {
+                news.setViewCount(0); 
+            }
+        } else {
+            news.setId(UUID.randomUUID().toString());
+            news.setViewCount(0); 
+            successMessage = "Thêm tin tức mới thành công!";
+        }
+
+        // =============================================================
+        // 3. XỬ LÝ FILE UPLOAD
+        // =============================================================
+        Part imagePart = req.getPart("image");
+        String fileName = oldImage; 
+        String uploadPath = getServletContext().getRealPath(File.separator + UPLOAD_DIR);
+        File uploadDir = new File(uploadPath);
+        
+        if (!uploadDir.exists()) uploadDir.mkdirs();
+
+        if (imagePart != null && imagePart.getSize() > 0 && imagePart.getSubmittedFileName() != null) {
+            fileName = UUID.randomUUID().toString() + "_" + imagePart.getSubmittedFileName();
+            imagePart.write(uploadPath + File.separator + fileName);
+        } else if (fileName == null || fileName.isEmpty()) {
+            fileName = "default.jpg"; 
+        }
+
+        // =============================================================
+        // 4. GÁN DỮ LIỆU CUỐI CÙNG VÀO ENTITY
+        // =============================================================
+        news.setTitle(title);
+        news.setContent(content);
+        news.setImage(fileName);
+        
+        try {
+            news.setPostedDate(Date.valueOf(postedDateStr));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            news.setPostedDate(new Date(System.currentTimeMillis()));
+        }
+        
+        news.setAuthor(authorId);
+        news.setCategoryId(categoryId);
+        news.setHome(home); 
+        news.setPosition(position);
+        news.setStatus(status != null ? status : "Chưa duyệt"); 
+
+        // =============================================================
+        // 5. GỌI DAO VÀ CHUYỂN HƯỚNG
+        // =============================================================
+        boolean result = isUpdating ? newsDAO.update(news) : newsDAO.insert(news);
+
+        if (result) {
+            // Chuyển hướng thành công (SỬ DỤNG sendRedirect LUÔN FIX LỖI FORM)
+            String redirectURL = user.isRole() 
+                ? req.getContextPath() + "/admin/manage_all_news?message=" + successMessage
+                : req.getContextPath() + "/reporter/manage_my_news?message=" + successMessage;
+                
+            resp.sendRedirect(redirectURL);
+            
+        } else {
+            // Xử lý thất bại: Truyền lại Categories và dữ liệu để form không bị lỗi
+            String errorMessage = "Lưu tin thất bại! Vui lòng kiểm tra lại.";
+            
+            // FIX LỖI: Cần dùng CategoryDAO để lấy danh sách categories
+            CategoryDAO categoryDAO = new CategoryDAOImpl();
+            req.setAttribute("categories", categoryDAO.findAll()); 
+            
+            req.setAttribute("news", news);
+            req.setAttribute("errorMessage", errorMessage);
+            
+            req.getRequestDispatcher("/admin/edit_news.jsp").forward(req, resp);
+        }
+    }
+}

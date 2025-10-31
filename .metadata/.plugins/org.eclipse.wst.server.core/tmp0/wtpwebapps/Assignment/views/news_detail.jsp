@@ -120,14 +120,16 @@
     <a href="${pageContext.request.contextPath}/index"
        class="${fn:endsWith(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
 
-    <a href="${pageContext.request.contextPath}/category?name=Văn hóa"
-       class="${fn:contains(pageContext.request.queryString, 'Văn hóa') ? 'active' : ''}">Văn hóa</a>
+    <%-- KHỐI CODE ĐÃ SỬA: TỰ ĐỘNG TẠO MENU DỰA TRÊN CATEGORIES --%>
+    <%-- Bạn cần đảm bảo biến ${categories} đã được truyền từ Servlet vào Request Scope --%>
+    <c:forEach var="c" items="${categories}">
+        <a href="${pageContext.request.contextPath}/category?name=${c.name}"
+           class="${fn:contains(pageContext.request.requestURI, c.name) ? 'active' : ''}">
+            ${c.name}
+        </a>
+    </c:forEach>
+    <%-- KẾT THÚC KHỐI TỰ ĐỘNG TẠO MENU --%>
 
-    <a href="${pageContext.request.contextPath}/category?name=Pháp luật"
-       class="${fn:contains(pageContext.request.queryString, 'Pháp luật') ? 'active' : ''}">Pháp luật</a>
-
-    <a href="${pageContext.request.contextPath}/category?name=Thể thao"
-       class="${fn:contains(pageContext.request.queryString, 'Thể thao') ? 'active' : ''}">Thể thao</a>
 
     <c:if test="${not empty sessionScope.user}">
         <c:choose>

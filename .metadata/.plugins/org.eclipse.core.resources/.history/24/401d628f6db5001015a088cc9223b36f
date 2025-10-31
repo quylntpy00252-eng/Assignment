@@ -1,0 +1,195 @@
+
+<%@ page contentType="text/html; charset=UTF-8" language="java" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+
+<%@ page import="Entity.User" %>
+<%
+    // KHÔNG THAY ĐỔI: Đây là nơi an toàn để lấy User và tạo biến fullname
+    User user = (User) session.getAttribute("user");
+    // SỬA: Chuyển sang dùng EL để nhất quán và an toàn hơn
+    // String fullname = (user != null && user.getFullname() != null) ? user.getFullname() : "Quản trị viên";
+%>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ABC News - Quản lý tất cả tin tức.">
+    <meta name="keywords" content="quản lý tin tức, quản trị, ABC News">
+    <meta name="author" content="ABC News">
+    <title>ABC News - Quản lý tất cả tin tức</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+
+
+<style>
+/* ================================================= */
+/* BỔ SUNG CSS: Ảnh đại diện & Khung action */
+/* ================================================= */
+/* Nền chung và Header giữ nguyên để đồng bộ */
+/* ... (Giữ nguyên các khối CSS cũ) ... */
+.news-table img.thumbnail {
+    width: 50px; 
+    height: 50px; 
+    object-fit: cover; 
+    border-radius: 4px;
+}
+.action-cell {
+    display: flex;
+    flex-direction: column; /* Xếp các nút dọc */
+    gap: 5px; /* Khoảng cách giữa các nút */
+    align-items: flex-start;
+}
+</style>
+    
+</head>
+<body>
+
+
+<header class="site-header">
+    <div class="container">
+        <div class="logo">ABC <span>News</span></div>
+<nav class="menu">
+    <a href="${pageContext.request.contextPath}/index"
+       class="${fn:contains(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
+
+    <c:forEach var="c" items="${categories}">
+        <a href="${pageContext.request.contextPath}/category?name=${c.name}"
+           class="${fn:contains(pageContext.request.requestURI, c.name) ? 'active' : ''}">
+            ${c.name}
+        </a>
+    </c:forEach>
+
+
+    <a href="${pageContext.request.contextPath}/admin"
+       class="${fn:contains(pageContext.request.requestURI, '/admin') ? 'active' : ''}">Quản trị</a>
+</nav>
+
+
+<div class="header-actions">
+    <%-- SỬA: Dùng EL thay vì Scriptlet --%>
+    Xin chào <strong>${user.fullname != null ? user.fullname : 'Quản trị viên'}</strong>
+    <a href="${pageContext.request.contextPath}/logout" class="logout-btn">Đăng xuất</a>
+</div>
+    </div>
+</header>
+
+<div class="container">
+    <section class="center-col">
+        <h2>Quản lý tất cả tin tức</h2>
+        <div class="action-bar">
+            <a href="${pageContext.request.contextPath}/admin/add_edit_news" class="add-news-btn">Thêm tin mới</a>
+        </div>
+
+        <table class="news-table">
+            <thead>
+                <tr>
+                    <th>Tiêu đề</th>
+                    <th>Loại tin</th>
+                    <th>Phóng viên</th>
+                    <th>Ngày đăng</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+<c:forEach var="n" items="${newsList}">
+    <tr>
+        <%-- BẢO MẬT XSS: Thêm fn:escapeXml() cho tất cả dữ liệu từ DB --%>
+        <td>${fn:escapeXml(n.title)}</td>
+        <td>${fn:escapeXml(n.categoryName)}</td>
+		<td>${fn:escapeXml(n.authorName)}</td>
+        <td>${fn:escapeXml(n.postedDate)}</td>
+        <td>${fn:escapeXml(n.status)}</td>
+        <td class="action-cell">
+            <%-- SỬA: Sửa nút Sửa (vẫn dùng GET vì không thay đổi trạng thái) --%>
+            <a href="${pageContext.request.contextPath}/admin/add_edit_news?id=${n.id}" class="action-btn edit-btn">Sửa</a>
+        
+            <%-- BẢO MẬT CSRF: Chuyển nút Xóa sang dùng JS/POST --%>
+            <button type="button" 
+                    class="action-btn delete-btn"
+                    onclick="submitAction('deleteForm', '${n.id}', 'Bạn có chắc muốn xóa tin tức: ${fn:escapeXml(n.title)}?')">
+                Xóa
+            </button>
+
+            <c:if test="${!n.home}">
+                <%-- BẢO MẬT CSRF: Chuyển nút Feature sang dùng JS/POST --%>
+                <button type="button" 
+                        class="action-btn feature-btn"
+                        onclick="submitAction('featureForm', '${n.id}', 'Bạn có chắc muốn ĐƯA tin này lên trang chủ?')">
+                    Đưa lên trang chủ
+                </button>
+            </c:if>
+
+            <c:if test="${n.status eq 'Đã duyệt' && !n.emailed}">
+                <%-- BẢO MẬT CSRF: Chuyển nút Gửi email sang dùng JS/POST --%>
+                <button type="button" 
+                        class="action-btn email-btn"
+                        onclick="submitAction('emailForm', '${n.id}', 'Bạn có chắc muốn GỬI EMAIL thông báo tin tức này?')">
+                    Gửi email
+                </button>
+            </c:if>
+
+            <c:if test="${n.status ne 'Đã duyệt'}">
+                <%-- BẢO MẬT CSRF: Chuyển nút Duyệt sang dùng JS/POST --%>
+                <button type="button" 
+                        class="action-btn approve-btn"
+                        onclick="submitAction('approveForm', '${n.id}', 'Bạn có chắc muốn DUYỆT tin tức này?')">
+                    Duyệt
+                </button>
+            </c:if>
+        </td>
+    </tr>
+</c:forEach>
+</tbody>
+
+
+        </table>
+    </section>
+</div>
+
+<form id="deleteForm" action="${pageContext.request.contextPath}/admin/delete_news" method="post" style="display:none;">
+    <input type="hidden" name="id" id="deleteNewsId">
+</form>
+
+<form id="featureForm" action="${pageContext.request.contextPath}/admin/feature_news" method="post" style="display:none;">
+    <input type="hidden" name="id" id="featureNewsId">
+</form>
+
+<form id="emailForm" action="${pageContext.request.contextPath}/admin/send_email" method="post" style="display:none;">
+    <input type="hidden" name="id" id="emailNewsId">
+</form>
+
+<form id="approveForm" action="${pageContext.request.contextPath}/admin/approve_news" method="post" style="display:none;">
+    <input type="hidden" name="id" id="approveNewsId">
+</form>
+<%@ include file="../includes/news_index_footer.jsp" %>
+
+<script>
+    /**
+     * Xử lý xác nhận và gửi Form POST ẩn cho các hành động quan trọng (CSRF Protection).
+     * @param {string} formId - ID của form ẩn (ví dụ: 'deleteForm').
+     * @param {number} newsId - ID của tin tức.
+     * @param {string} message - Thông báo xác nhận.
+     */
+    function submitAction(formId, newsId, message) {
+        if (confirm(message)) {
+            const form = document.getElementById(formId);
+            
+            // Tìm input 'id' trong form và gán giá trị
+            const inputId = form.querySelector('input[name="id"]');
+            
+            if (inputId) {
+                inputId.value = newsId;
+                form.submit();
+            } else {
+                console.error('Không tìm thấy input ID trong form:', formId);
+            }
+        }
+    }
+</script>
+
+</body>
+
+</html>

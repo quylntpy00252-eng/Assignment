@@ -3,8 +3,13 @@
 <%@ page import="Entity.User" %>
 <%
     User user = (User) session.getAttribute("user");
-    String fullname = (user != null && user.getFullname() != null)
-        ? user.getFullname() : "Quản trị viên";
+    // BEST PRACTICE SUGGESTION:
+    // CẦN THÊM LOGIC KIỂM TRA QUYỀN TRUY CẬP (AUTHORIZATION) Ở ĐÂY.
+    // Ví dụ: Nếu user == null hoặc user.role != "admin", thì redirect sang trang login.
+    // if (user == null) {
+    //     response.sendRedirect(request.getContextPath() + "/login");
+    //     return;
+    // }
 %>
 <!DOCTYPE html>
 <html lang="vi">
@@ -12,190 +17,294 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ABC News - Trang Quản Trị</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
 
     <style>
+        /* ================================================= */
+        /* CƠ SỞ CHUNG: Tông màu dịu nhẹ, tương phản cao */
+        /* ================================================= */
+        body {
+            background-color: #eef1f5; /* Nền xám nhạt hiện đại */
+            color: #495057; /* Màu chữ chính */
+            font-family: 'Roboto', sans-serif;
+        }
+
+        /* HEADER & MENU */
+        .site-header {
+            background-color: #1a2a47; /* Xanh Navy Sâu, chuyên nghiệp */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .logo { color: #ffffff; font-weight: 700; font-size: 24px; }
+        .logo span { color: #fcc419; } /* Vàng ấm */
+
+        /* Điều chỉnh Menu (giả sử menu nằm trong header) */
+        .menu a {
+            color: #c7d1e0; /* Màu chữ menu nhẹ nhàng */
+            transition: color 0.2s, background-color 0.2s;
+            padding: 15px 10px;
+        }
+        .menu a:hover {
+            color: #ffffff;
+        }
+        .menu a.active {
+            color: #ffffff;
+            border-bottom: 3px solid #fcc419; /* Vàng nổi bật */
+        }
+        
+        /* Actions (Search, Xin chào, Logout) */
+        .header-actions {
+            color: #c7d1e0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header-actions strong {
+            color: #ffffff;
+            font-weight: 500;
+        }
+        .logout-btn {
+            background: #e53935; /* Đỏ dịu hơn */
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .logout-btn:hover { background: #d32f2f; }
+        /* Search Bar Styling (Cần giả định cấu trúc base CSS cho search) */
+        .search-form input {
+            border-radius: 6px;
+            border: 1px solid #c7d1e0;
+            padding: 5px 10px;
+            background-color: #273e63;
+            color: #ffffff;
+        }
+        .search-form button {
+            background: none;
+            border: none;
+            color: #c7d1e0;
+            cursor: pointer;
+        }
+
+
+        /* ================================================= */
+        /* BỐ CỤC CHÍNH (3 Cột) */
+        /* ================================================= */
+        .center-col, .right-col {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-top: 15px; /* Giả định container-3col có khoảng cách */
+        }
+        h2 {
+            color: #1a2a47;
+            font-size: 26px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .box h3 {
+            color: #1a2a47;
+            font-size: 18px;
+            border-bottom: 2px solid #fcc419;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .box p, .box li { 
+            font-size: 14px; 
+            color: #6c757d; 
+            line-height: 1.6;
+        }
+        
+        /* NÚT ĐỔI MẬT KHẨU */
+        .change-pass-btn {
+            display: block;
+            background: #fcc419; /* Vàng ấm */
+            color: #1a2a47; /* Chữ xanh navy đậm */
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 25px;
+            transition: 0.3s;
+            box-shadow: 0 4px 8px rgba(252, 196, 25, 0.3);
+        }
+        .change-pass-btn:hover { background: #ffbe00; }
+
+
+        /* ================================================= */
+        /* NÚT HÀNH ĐỘNG QUẢN TRỊ (CENTER-COL) */
+        /* ================================================= */
+        .admin-actions { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; /* Tăng khoảng cách giữa các nút */
+        }
+        .admin-action-btn {
+            display: block; /* Đảm bảo nút chiếm hết chiều ngang */
+            margin: 0; /* Xóa margin cũ */
+            padding: 15px 20px; /* Tăng padding để nút lớn và dễ bấm */
+            color: white; 
+            font-weight: 700; 
+            font-size: 16px;
+            border-radius: 10px; /* Bo góc nhẹ */
+            text-decoration: none; 
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            text-align: center;
+        }
+        
+        /* Nút Người dùng (Primary - Xanh dương) */
+        .admin-action-btn.primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        .admin-action-btn.primary:hover {
+            background: linear-gradient(135deg, #0056b3, #003d80);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4);
+        }
+
+        /* Nút Loại tin (Success - Xanh lá) */
+        .admin-action-btn.success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+        }
+        .admin-action-btn.success:hover {
+            background: linear-gradient(135deg, #1e7e34, #155d27);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        /* Nút Bài viết (Warning - Cam/Vàng) */
+        .admin-action-btn.warning {
+            background: linear-gradient(135deg, #ff9800, #f57c00); /* Cam ấm */
+            color: white; /* Chữ trắng */
+        }
+        .admin-action-btn.warning:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(255, 152, 0, 0.4);
+        }
+        
+
+        /* ================================================= */
+        /* POPUP ĐỔI MẬT KHẨU */
+        /* ================================================= */
         .popup-overlay {
             position: fixed; inset: 0;
-            background: rgba(0,0,0,0.6);
+            background: rgba(26, 42, 71, 0.8); /* Nền overlay tối hơn, đồng bộ với header */
             display: none; justify-content: center; align-items: center;
             z-index: 9999;
         }
         .popup-form {
             position: relative;
             background: #fff;
-            width: 380px; padding: 35px 25px 25px;
+            width: 380px; padding: 40px 30px 30px; /* Tăng padding */
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
             text-align: center;
             animation: fadeIn 0.3s ease-in-out;
         }
-        .popup-form h3 { color: #0d47a1; margin-bottom: 8px; }
-        .popup-form p { font-size: 14px; color: #555; margin-bottom: 20px; }
+        .popup-form h3 { color: #1a2a47; margin-bottom: 10px; font-weight: 500; }
+        .popup-form p { font-size: 14px; color: #6c757d; margin-bottom: 25px; }
         .popup-form input {
-            width: 100%; padding: 10px; margin-bottom: 15px;
-            border: 1px solid #ccc; border-radius: 8px; font-size: 15px;
+            width: 100%; padding: 12px; margin-bottom: 18px;
+            border: 1px solid #ced4da; border-radius: 8px; font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .popup-form input:focus {
+             border-color: #007bff;
         }
         .popup-form button[type="submit"] {
-            width: 100%; padding: 10px 25px;
-            background: #ffcc00; border: none; border-radius: 8px;
-            font-weight: bold; cursor: pointer; transition: 0.3s;
+            width: 100%; padding: 12px 25px;
+            background: #007bff; /* Thay màu vàng bằng màu xanh dương chuyên nghiệp */
+            color: white;
+            border: none; border-radius: 8px;
+            font-weight: 700; cursor: pointer; transition: 0.3s;
         }
-        .popup-form button:hover { background: #fdd835; }
+        .popup-form button:hover { 
+            background: #0056b3; 
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+        }
         .close-icon {
-            position: absolute; top: 10px; right: 12px;
+            position: absolute; top: 15px; right: 15px;
             background: none; border: none;
-            font-size: 22px; font-weight: bold; color: #555;
+            font-size: 24px; font-weight: 300; color: #adb5bd;
             cursor: pointer; transition: color 0.2s;
         }
-        .close-icon:hover { color: #e53935; }
+        .close-icon:hover { color: #dc3545; }
         @keyframes fadeIn { from {opacity: 0; transform: scale(0.9);} to {opacity: 1; transform: scale(1);} }
-
-        .change-pass-btn {
-            display: inline-block;
-            background: #ffcc00; color: #000;
-            padding: 10px 18px; border-radius: 8px;
-            font-weight: bold; text-align: center;
-            margin-bottom: 20px; transition: 0.3s;
-        }
-        .change-pass-btn:hover { background: #fdd835; }
-
-        .admin-banner h2 { margin-bottom: 20px; color: #0d47a1; }
-        .admin-stats {
-            display: flex; gap: 15px; margin-bottom: 25px;
-        }
-        .stat-box {
-            flex: 1; background: #fff; border-radius: 10px;
-            padding: 15px; text-align: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-        .stat-box h4 { margin: 5px 0; color: #0d47a1; }
-        .admin-actions { display: flex; flex-direction: column; gap: 10px; }
-        .admin-btn {
-            display: block; padding: 10px;
-            background: #0d47a1; color: #fff; border-radius: 8px;
-            text-align: center; transition: 0.3s;
-        }
-        .admin-btn:hover { background: #1565c0; }
     </style>
 </head>
 
 <body>
-    <!-- HEADER -->
     <header class="site-header">
         <div class="container">
             <div class="logo">ABC <span>News</span></div>
-          <nav class="menu">
-    <a href="${pageContext.request.contextPath}/index"
-       class="${fn:contains(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
+            <nav class="menu">
+                <a href="${pageContext.request.contextPath}/index"
+                    class="${fn:contains(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
 
-    <a href="${pageContext.request.contextPath}/category?name=Văn hóa"
-   class="${fn:contains(pageContext.request.requestURI, 'Văn hóa') ? 'active' : ''}">Văn hóa</a>
-
-<a href="${pageContext.request.contextPath}/category?name=Pháp luật"
-   class="${fn:contains(pageContext.request.requestURI, 'Pháp luật') ? 'active' : ''}">Pháp luật</a>
-
-<a href="${pageContext.request.contextPath}/category?name=Thể thao"
-   class="${fn:contains(pageContext.request.requestURI, 'Thể thao') ? 'active' : ''}">Thể thao</a>
     
+                <a href="${pageContext.request.contextPath}/admin"
+                    class="${fn:contains(pageContext.request.requestURI, '/admin') ? 'active' : ''}">Quản trị</a>
+            </nav>
+            
+            <!-- ĐÃ SỬA: Xóa thẻ </nav> bị dư ở đây -->
 
-    <a href="${pageContext.request.contextPath}/admin"
-       class="${fn:contains(pageContext.request.requestURI, '/admin') ? 'active' : ''}">Quản trị</a>
-</nav>
-
-
-
-</nav>
-
-<div class="header-actions">
-	<form action="${pageContext.request.contextPath}/search" method="get" class="search-form">
-				    <input type="text" name="keyword" placeholder="Tìm kiếm tin tức..." class="search-bar" required>
-				    <button type="submit" class="search-btn">🔍</button>
-				</form>
-    Xin chào <strong><%= user.getFullname() != null ? user.getFullname() : "Admin" %></strong>
-    <a href="${pageContext.request.contextPath}/logout" class="logout-btn">Đăng xuất</a>
-</div>
+            <div class="header-actions">
+                <form action="${pageContext.request.contextPath}/search" method="get" class="search-form">
+                    <input type="text" name="keyword" placeholder="Tìm kiếm tin tức..." class="search-bar" required>
+                    <button type="submit" class="search-btn">🔍</button>
+                </form>
+    
+                <%-- ĐÃ SỬA: Thay thế Scriptlet (<%= ... %>) bằng Expression Language (${...}) 
+                    để ngăn ngừa XSS và tăng tính nhất quán --%>
+                Xin chào <strong>${user.fullname != null ? user.fullname : 'Admin'}</strong>
+                <a href="${pageContext.request.contextPath}/logout" class="logout-btn">Đăng xuất</a>
+            </div>
         </div>
     </header>
 
-    <!-- MAIN -->
     <div class="container">
         <div class="container-3col">
 
-            <!-- Cột trái -->
             <%@ include file="../includes/news_index_left.jsp" %>
 
-            <!-- Cột giữa -->
-            <section class="center-col">     
-               <h2>Quản trị hệ thống</h2>
+            <section class="center-col">      
+                <h2>Quản trị hệ thống</h2>
                 <div class="admin-actions">
-					<a href="${pageContext.request.contextPath}/admin/manage_users"
-   style="display:inline-block; 
-          margin:8px 10px; 
-          padding:10px 18px; 
-          background:linear-gradient(135deg, #007bff, #0056b3); 
-          color:white; 
-          font-weight:600; 
-          border-radius:8px; 
-          text-decoration:none; 
-          transition:all 0.25s ease;
-          box-shadow:0 2px 5px rgba(0,0,0,0.15);"
-   onmouseover="this.style.background='linear-gradient(135deg,#0056b3,#003d80)'"
-   onmouseout="this.style.background='linear-gradient(135deg,#007bff,#0056b3)'">
-   Quản lý người dùng
-</a>
+                
+                <%-- ĐÃ SỬA: Thay thế CSS inline và JS inline bằng class CSS --%>
+                <a href="${pageContext.request.contextPath}/admin/manage_users" class="admin-action-btn primary">
+                    Quản lý người dùng
+                </a>
 
-<a href="${pageContext.request.contextPath}/admin/manage_categories"
-   style="display:inline-block; 
-          margin:8px 10px; 
-          padding:10px 18px; 
-          background:linear-gradient(135deg, #28a745, #1e7e34); 
-          color:white; 
-          font-weight:600; 
-          border-radius:8px; 
-          text-decoration:none; 
-          transition:all 0.25s ease;
-          box-shadow:0 2px 5px rgba(0,0,0,0.15);"
-   onmouseover="this.style.background='linear-gradient(135deg,#1e7e34,#155d27)'"
-   onmouseout="this.style.background='linear-gradient(135deg,#28a745,#1e7e34)'">
-   Quản lý loại tin
-</a>
+                <a href="${pageContext.request.contextPath}/admin/manage_categories" class="admin-action-btn success">
+                    Quản lý loại tin
+                </a>
 
-<a href="${pageContext.request.contextPath}/admin/manage_all_news"
-   style="display:inline-block; 
-          margin:8px 10px; 
-          padding:10px 18px; 
-          background:linear-gradient(135deg, #ffc107, #e0a800); 
-          color:#333; 
-          font-weight:600; 
-          border-radius:8px; 
-          text-decoration:none; 
-          transition:all 0.25s ease;
-          box-shadow:0 2px 5px rgba(0,0,0,0.15);"
-   onmouseover="this.style.background='linear-gradient(135deg,#e0a800,#c69500)'"
-   onmouseout="this.style.background='linear-gradient(135deg,#ffc107,#e0a800)'">
-   Quản lý bài viết
-</a>
-
-					
+                <a href="${pageContext.request.contextPath}/admin/manage_all_news" class="admin-action-btn warning">
+                    Quản lý bài viết
+                </a>
+                    
                 </div>
-                
-                
             </section>
-			
+            
             <aside class="right-col">
                 <a href="#" class="change-pass-btn" onclick="openPopup()">Đổi mật khẩu</a>
-                <div class="box">
-                    <h3>Thông tin hệ thống</h3>
-                    <p><strong>Cập nhật lần cuối:</strong> 28/09/2025 16:42</p>
-                    <p><strong>Phiên bản:</strong> 1.0.0</p>
-                </div>
+                
                 <div class="box">
                     <h3>Tin tức hấp dẫn</h3>
                     <ul>
-                <%@ include file="../includes/news_index_center.jsp" %>
-                </div>
+                        <%@ include file="../includes/news_index_center.jsp" %>
+                    </ul>
+                </div> 
+                <!-- ĐÃ SỬA: Thêm thẻ đóng </ul> bị thiếu phía trên -->
             </aside>
         </div>
     </div>

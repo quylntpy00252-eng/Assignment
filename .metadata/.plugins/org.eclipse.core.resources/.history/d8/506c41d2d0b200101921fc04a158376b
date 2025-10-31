@@ -1,0 +1,190 @@
+package adminServlet;
+
+import DAO.CategoryDAO;
+import DAO.CategoryDAOImpl;
+import DAO.NewsDAO;
+import DAO.NewsDAOImpl;
+import Entity.Category;
+import Entity.News;
+import Entity.User;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
+
+import java.io.File;
+import java.io.IOException;
+import java.sql.Date;
+import java.util.List;
+import java.util.UUID;
+
+// Đặt cấu hình MultipartConfig chi tiết hơn cho file upload lớn
+@WebServlet("/admin/add_edit_news")
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2, // 2MB
+    maxFileSize = 1024 * 1024 * 10,      // 10MB
+    maxRequestSize = 1024 * 1024 * 50    // 50MB
+)
+public class AdminAddEditNewsServlet extends HttpServlet {
+
+    private static final String UPLOAD_DIR = "uploads";
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        // Cấu hình encoding cho response (quan trọng cho tiếng Việt)
+        resp.setCharacterEncoding("UTF-8");
+        req.setCharacterEncoding("UTF-8");
+
+        CategoryDAO categoryDAO = new CategoryDAOImpl();
+        List<Category> categories = categoryDAO.findAll();
+        req.setAttribute("categories", categories);
+
+        String id = req.getParameter("id");
+        if (id != null && !id.isEmpty()) {
+            NewsDAO newsDAO = new NewsDAOImpl();
+            // Sử dụng getById để lấy cả CategoryName và AuthorName nếu cần hiển thị
+            News news = newsDAO.getById(id); 
+            req.setAttribute("news", news);
+        }
+
+        // Đảm bảo JSP là nơi chứa form bạn đã cung cấp
+        req.getRequestDispatcher("/admin/edit_news.jsp").forward(req, resp);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        req.setCharacterEncoding("UTF-8");
+        resp.setCharacterEncoding("UTF-8");
+
+        HttpSession session = req.getSession();
+        User user = (User) session.getAttribute("user");
+
+        // Kiểm tra phiên đăng nhập
+        if (user == null) {
+            resp.sendRedirect(req.getContextPath() + "/login");
+            return;
+        }
+
+        // =============================================================
+        // 1. LẤY DỮ LIỆU TỪ FORM (Đã sửa để lấy PostedDate và AuthorId)
+        // =============================================================
+        String id = req.getParameter("id");
+        String title = req.getParameter("title");
+        String content = req.getParameter("content");
+        String categoryId = req.getParameter("categoryId");
+        String postedDateStr = req.getParameter("postedDate"); // LẤY TỪ FORM
+        String positionStr = req.getParameter("position");
+        
+        // Tác giả và ViewCount cũ (cần xử lý đặc biệt)
+        String oldImage = req.getParameter("oldImage");
+        String authorId = user.getId(); // Tốt nhất nên lấy từ Session
+        
+        // Các trường tùy chọn (nếu có trong form)
+        String status = req.getParameter("status"); 
+        
+        // Chuyển đổi kiểu dữ liệu
+        Integer position = (positionStr != null && !positionStr.isEmpty()) ? Integer.valueOf(positionStr) : null;
+        boolean home = false; // Mặc định là false nếu không có checkbox trong form
+
+        // =============================================================
+        // 2. XỬ LÝ ID VÀ VIEWS (Khắc phục lỗi logic)
+        // =============================================================
+        NewsDAOImpl newsDAO = new NewsDAOImpl();
+        News news = new News();
+        boolean isUpdating = (id != null && !id.isEmpty());
+        String successMessage = "";
+        
+        // GÁN ID VÀ LẤY VIEWCOUNT
+        if (isUpdating) {
+            // Chế độ SỬA: Giữ ID cũ và lấy ViewCount cũ
+            news.setId(id);
+            News oldNews = newsDAO.getById(id);
+            if (oldNews != null) {
+                news.setViewCount(oldNews.getViewCount());
+                successMessage = "Cập nhật tin tức thành công!";
+            } else {
+                // Trường hợp lỗi không tìm thấy tin cũ khi sửa
+                news.setViewCount(0); 
+            }
+        } else {
+            // Chế độ THÊM MỚI: Tạo ID mới và ViewCount = 0
+            news.setId(UUID.randomUUID().toString());
+            news.setViewCount(0); 
+            successMessage = "Thêm tin tức mới thành công!";
+        }
+
+        // =============================================================
+        // 3. XỬ LÝ FILE UPLOAD (Đã sửa để dùng đường dẫn UPLOAD_DIR)
+        // =============================================================
+        Part imagePart = req.getPart("image");
+        String fileName = oldImage; // Giữ lại ảnh cũ mặc định
+        String uploadPath = getServletContext().getRealPath(File.separator + UPLOAD_DIR);
+        File uploadDir = new File(uploadPath);
+        
+        if (!uploadDir.exists()) uploadDir.mkdirs();
+
+        if (imagePart != null && imagePart.getSize() > 0) {
+            // Người dùng chọn ảnh mới
+            fileName = UUID.randomUUID().toString() + "_" + imagePart.getSubmittedFileName();
+            // Ghi file vào thư mục UPLOADS
+            imagePart.write(uploadPath + File.separator + fileName);
+        } else if (fileName == null || fileName.isEmpty()) {
+            // Trường hợp thêm mới mà không có ảnh, dùng default.jpg
+            fileName = "default.jpg"; 
+        }
+
+        // =============================================================
+        // 4. GÁN DỮ LIỆU CUỐI CÙNG VÀO ENTITY (Khắc phục lỗi PostedDate)
+        // =============================================================
+        news.setTitle(title);
+        news.setContent(content);
+        news.setImage(fileName);
+        
+        // Gán PostedDate từ form (đã kiểm tra)
+        try {
+            news.setPostedDate(Date.valueOf(postedDateStr));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            // Nếu có lỗi format, dùng ngày hiện tại làm ngày đăng
+            news.setPostedDate(new Date(System.currentTimeMillis()));
+        }
+        
+        news.setAuthor(authorId);
+        news.setCategoryId(categoryId);
+        news.setHome(home); // Cần có checkbox trong form nếu muốn gán động
+        news.setPosition(position);
+        news.setStatus(status != null ? status : "Chưa duyệt"); // Gán trạng thái mặc định
+
+        // =============================================================
+        // 5. GỌI DAO VÀ CHUYỂN HƯỚNG
+        // =============================================================
+        boolean result = isUpdating ? newsDAO.update(news) : newsDAO.insert(news);
+
+        if (result) {
+            // Chuyển hướng thành công
+            if (user.isRole()) { // Admin
+                resp.sendRedirect(req.getContextPath() + "/admin/manage_all_news?message=" + successMessage);
+            } else { // Reporter
+                resp.sendRedirect(req.getContextPath() + "/reporter/manage_my_news?message=" + successMessage);
+            }
+        } else {
+            // Xử lý thất bại
+            String errorMessage = "Lưu tin thất bại! Vui lòng kiểm tra lại.";
+            // Để giữ lại dữ liệu và categories khi quay lại form:
+            req.setAttribute("news", news);
+            req.setAttribute("errorMessage", errorMessage);
+            req.setAttribute("categories", newsDAO.findAll()); // Giả định NewsDAOImpl có findAllCategories
+            
+            // Chuyển hướng trở lại form với dữ liệu đã nhập
+            req.getRequestDispatcher("/admin/edit_news.jsp").forward(req, resp);
+        }
+    }
+}

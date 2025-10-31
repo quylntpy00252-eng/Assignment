@@ -1,0 +1,31 @@
+package DAO;
+
+import java.util.List;
+import Entity.News;
+
+public interface NewsDAO {
+    // 1. CRUD Cơ bản
+    List<News> findAll();                  // Lấy tất cả tin tức
+    News findById(String id);              // Tìm tin theo ID
+    boolean insert(News news);             // Thêm tin mới
+    boolean update(News news);             // Cập nhật tin
+    boolean delete(String id);             // Xóa tin
+
+    // 2. Truy vấn theo Tiêu chí (Sử dụng Status = N'Đã duyệt' khi cần)
+    List<News> findByCategory(String categoryId);    // Lấy tin theo ID loại
+    List<News> findByAuthor(String authorId);      // Lấy tin theo ID tác giả (selectByAuthor)
+    List<News> searchNews(String keyword);          // Tìm tin theo từ khóa (Tiêu đề/Nội dung)
+    List<News> findByCategoryName(String categoryName); // Lấy tin theo Tên loại tin (getApprovedNewsByCategoryName)
+    
+    // 3. Truy vấn đặc biệt (Sử dụng limit/Top N)
+    // Các phương thức này sẽ được triển khai với điều kiện Status = N'Đã duyệt' nếu cần ở tầng Service
+    List<News> findTopViewed(int limit);   // Lấy Top N tin được xem nhiều nhất
+    List<News> findLatest(int limit);      // Lấy Top N tin mới nhất
+    List<News> findHomeByPosition(int position); // Lấy tin nổi bật theo vị trí
+
+    // 4. Cập nhật Trạng thái/Hành động (Sửa tên cột cho nhất quán với DB)
+    boolean updateStatus(String id, String newStatus); // Cập nhật trạng thái duyệt (Status)
+    void updateHomeStatus(String id, boolean isHome);   // Cập nhật cờ Trang nhất (Home/Featured)
+    void updateEmailedStatus(String id, boolean value); // Cập nhật cờ đã gửi Email
+    void incrementViewCount(String id);                // Tăng số lượt xem
+}

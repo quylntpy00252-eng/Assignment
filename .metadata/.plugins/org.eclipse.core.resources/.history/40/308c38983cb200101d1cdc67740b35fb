@@ -1,0 +1,5 @@
+package reporterServlet;
+
+public class AddEditNewsController {
+
+}

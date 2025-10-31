@@ -1,0 +1,577 @@
+package DAO;
+
+import Entity.News;
+import Utils.Jdbc;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class NewsDAOImpl implements NewsDAO {
+
+    // --- Helper Method ---
+    private News mapResultSetToNews(ResultSet rs) throws SQLException {
+        News n = new News();
+        n.setId(rs.getString("Id"));
+        n.setTitle(rs.getNString("Title"));
+        n.setContent(rs.getNString("Content"));
+        n.setImage(rs.getString("Image"));
+        n.setPostedDate(rs.getDate("PostedDate"));
+        n.setAuthor(rs.getString("Author"));
+        n.setViewCount(rs.getInt("ViewCount"));
+        n.setCategoryId(rs.getString("CategoryId"));
+        n.setHome(rs.getBoolean("Home"));
+        
+        // Xử lý cột Position (cho phép NULL)
+        int pos = rs.getInt("Position");
+        if (rs.wasNull()) {
+            n.setPosition(null);
+        } else {
+            n.setPosition(pos);
+        }
+
+        // Xử lý cột Status (nên có trong mọi query)
+        try {
+            n.setStatus(rs.getNString("Status"));
+        } catch (SQLException ex) {
+            // Cột Status không được SELECT trong query này, đặt giá trị mặc định
+             n.setStatus(null); 
+        }
+
+        // Xử lý isEmailed (cột này không tồn tại trong DB bạn cung cấp)
+        try {
+            // Giả định: cột này là cờ logic và không được SELECT
+            n.setEmailed(rs.getBoolean("isEmailed")); 
+        } catch (SQLException ex) {
+            n.setEmailed(false);
+        }
+
+        return n;
+    }
+
+    // --- Phương thức CRUD và Read cơ bản ---
+    
+    @Override // getAllNews() và findAll() là dư thừa, chọn findAll()
+    public List<News> findAll() {
+        List<News> list = new ArrayList<>();
+        // Đã thêm u.Fullname AS AuthorName
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                News n = mapResultSetToNews(rs);
+                n.setCategoryName(rs.getNString("CategoryName"));
+                n.setAuthorName(rs.getNString("AuthorName")); 
+                list.add(n);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+
+    @Override // findById được ưu tiên hơn getById/getNewsById
+    public News findById(String id) {
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            WHERE n.Id = ?
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName")); 
+                    return n;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+    @Override // Sửa: Thêm JOIN để lấy CategoryName
+    public List<News> findByCategory(String categoryId) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName
+            FROM NEWS n
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            WHERE n.CategoryId = ? 
+            ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, categoryId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    list.add(n);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // searchByTitle(Đã bị loại bỏ trong tối ưu hóa Interface trước đó, nhưng nếu giữ lại thì ổn)
+    public List<News> searchByTitle(String keyword) {
+        // Tên phương thức này không còn trong NewsDAO được tối ưu, nên đổi tên thành searchNews
+        return searchNews(keyword);
+    }
+    
+    @Override
+    public boolean insert(News news) {
+        String sql = """
+            INSERT INTO NEWS (Id, Title, Content, Image, PostedDate, Author, ViewCount, CategoryId, Home, Position, Status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, news.getId());
+            ps.setNString(2, news.getTitle());
+            ps.setNString(3, news.getContent());
+            ps.setString(4, news.getImage());
+            
+            // Xử lý PostedDate có thể null
+            ps.setDate(5, news.getPostedDate() == null ? new java.sql.Date(System.currentTimeMillis()) : news.getPostedDate());
+            
+            ps.setString(6, news.getAuthor());
+            ps.setInt(7, news.getViewCount());
+            ps.setString(8, news.getCategoryId());
+            ps.setBoolean(9, news.isHome());
+            
+            // Xử lý Position có thể null
+            if (news.getPosition() != null) {
+                ps.setInt(10, news.getPosition());
+            } else {
+                ps.setNull(10, java.sql.Types.INTEGER);
+            }
+            
+            // Xử lý Status (nên dùng giá trị mặc định của DB nếu Java object null)
+            String status = news.getStatus() != null ? news.getStatus() : "Chưa duyệt"; // Cột này NOT NULL
+            ps.setNString(11, status);
+            
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    @Override
+    public boolean update(News news) {
+        String sql = """
+            UPDATE NEWS
+            SET Title = ?, Content = ?, Image = ?, PostedDate = ?, Author = ?, ViewCount = ?, CategoryId = ?, Home = ?, Position = ?, Status = ?
+            WHERE Id = ?
+            """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setNString(1, news.getTitle());
+            ps.setNString(2, news.getContent());
+            ps.setString(3, news.getImage());
+            ps.setDate(4, news.getPostedDate() == null ? new java.sql.Date(System.currentTimeMillis()) : news.getPostedDate());
+            ps.setString(5, news.getAuthor());
+            ps.setInt(6, news.getViewCount());
+            ps.setString(7, news.getCategoryId());
+            ps.setBoolean(8, news.isHome());
+            
+            if (news.getPosition() != null) {
+                ps.setInt(9, news.getPosition());
+            } else {
+                ps.setNull(9, java.sql.Types.INTEGER);
+            }
+            
+            ps.setNString(10, news.getStatus() != null ? news.getStatus() : "Chưa duyệt");
+            ps.setString(11, news.getId());
+            
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    @Override
+    public boolean delete(String id) {
+        String sql = "DELETE FROM NEWS WHERE Id = ?";
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // --- Phương thức Truy vấn phức tạp hơn ---
+    
+    @Override // Sửa: Thêm JOIN AuthorName
+    public List<News> searchNews(String keyword) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+             SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+             FROM NEWS n
+             LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+             LEFT JOIN USERS u ON n.Author = u.Id
+             WHERE n.Title LIKE ? OR n.Content LIKE ? 
+             ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            String kw = "%" + keyword.trim() + "%";
+            ps.setNString(1, kw);
+            ps.setNString(2, kw);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+
+            System.out.println(">>> Tìm thấy " + list.size() + " kết quả cho từ khóa: " + keyword);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // Sửa: Thêm JOIN AuthorName
+    public List<News> selectByAuthor(String authorId) {
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n 
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            WHERE n.Author = ? 
+            ORDER BY n.PostedDate DESC
+        """;
+        List<News> list = new ArrayList<>();
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, authorId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+            System.out.println(">>> selectByAuthor(" + authorId + "): Tìm thấy " + list.size() + " tin");
+        } catch (SQLException e) {
+            System.out.println(">>> Lỗi selectByAuthor(" + authorId + "): " + e.getMessage());
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // Sửa Lỗi: Sử dụng TOP (?) và PreparedStatement
+    public List<News> findTopViewed(int limit) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT TOP (?) n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n 
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            ORDER BY n.ViewCount DESC, n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // Sửa: Thêm TOP (?) để tối ưu
+    public List<News> findLatest(int limit) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT TOP (?) n.*, c.Name AS CategoryName, u.Fullname AS AuthorName 
+            FROM NEWS n 
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+    
+    // --- Cập nhật Trạng thái ---
+
+    @Override
+    public boolean updateStatus(String id, String newStatus) {
+        String sql = "UPDATE NEWS SET Status = ? WHERE Id = ?"; // Sửa tên cột thành 'Status' (chữ hoa)
+        try (Connection conn = Jdbc.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setNString(1, newStatus);
+            ps.setString(2, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    // --- Phương thức 'Approved' (đã sửa lỗi SQL và sử dụng mapResultSetToNews) ---
+
+    @Override // Sửa: Tên cột SQL và sử dụng mapResultSetToNews
+    public List<News> findTopViewedApproved(int limit) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+             SELECT TOP (?) n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+             FROM NEWS n
+             LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+             LEFT JOIN USERS u ON n.Author = u.Id
+             WHERE n.Status = N'Đã duyệt'
+             ORDER BY n.ViewCount DESC
+        """; // Đã sửa tên cột và LEFT JOIN
+        try (Connection conn = Jdbc.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try(ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // Sửa: Tên cột SQL và sử dụng mapResultSetToNews
+    public List<News> findLatestApproved(int limit) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+             SELECT TOP (?) n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+             FROM NEWS n
+             LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+             LEFT JOIN USERS u ON n.Author = u.Id
+             WHERE n.Status = N'Đã duyệt'
+             ORDER BY n.PostedDate DESC
+        """; // Đã sửa tên cột và LEFT JOIN
+        try (Connection conn = Jdbc.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try(ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+    
+    @Override // Sửa: Thêm JOIN CategoryName
+    public List<News> findApprovedByCategory(String categoryId) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+             SELECT n.*, c.Name AS CategoryName 
+             FROM NEWS n
+             LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+             WHERE n.CategoryId = ? AND n.Status = N'Đã duyệt' 
+             ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, categoryId);
+            try(ResultSet rs = ps.executeQuery()){
+                 while (rs.next()) {
+                     News n = mapResultSetToNews(rs);
+                     n.setCategoryName(rs.getNString("CategoryName"));
+                     list.add(n);
+                 }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // Sử dụng mapResultSetToNews
+    public List<News> getApprovedNewsByCategoryName(String categoryName) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+             SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+             FROM NEWS n
+             JOIN CATEGORIES c ON n.CategoryId = c.Id
+             LEFT JOIN USERS u ON n.Author = u.Id
+             WHERE c.Name = ? AND n.Status = N'Đã duyệt'
+             ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setNString(1, categoryName); // Dùng setNString cho categoryName (nếu là NVARCHAR)
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News news = mapResultSetToNews(rs);
+                    news.setCategoryName(rs.getNString("CategoryName"));
+                    news.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(news);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+    
+    // --- Các Phương thức còn lại (Đã sửa lỗi dư thừa) ---
+
+    @Override
+    public News getNewsById(String id) {
+        // Dư thừa. Nên sử dụng findById(id) có JOIN CategoryName/AuthorName
+        return findById(id); 
+    }
+    
+    @Override
+    public List<News> getAllNews() {
+         // Dư thừa. Nên sử dụng findAll()
+        return findAll();
+    }
+
+
+    @Override
+    public List<News> findHomeByPosition(int position) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            WHERE n.Home = 1 AND n.Position = ? AND n.Status = N'Đã duyệt' 
+            ORDER BY n.PostedDate DESC
+        """; // Đã thêm JOIN và sử dụng mapResultSetToNews
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, position);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override
+    public News getById(String id) {
+        // Dư thừa. Nên sử dụng findById(id)
+        return findById(id);
+    }
+    
+    @Override // Sửa lỗi: Cột trong DB là 'Home', không phải 'isFeatured'
+    public void updateFeature(String id, boolean value) {
+        String sql = "UPDATE NEWS SET Home = ? WHERE Id = ?"; // Đã sửa tên cột thành Home
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setBoolean(1, value);
+            ps.setString(2, id);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override // Sửa lỗi: Cột trong DB là 'Status', không phải 'isApproved'
+    public void updateApproved(String id, boolean value) {
+        // Dùng updateStatus thay thế
+        String newStatus = value ? "Đã duyệt" : "Chưa duyệt";
+        updateStatus(id, newStatus); 
+        // Hoặc giữ lại: UPDATE NEWS SET Status = N'Đã duyệt' WHERE Id = ?
+        
+        // Nếu muốn giữ nguyên logic SET isApproved = ?, thì cột isApproved phải có trong DB.
+        // Giả sử chỉ cần cập nhật Status:
+        /*
+        String sql = "UPDATE NEWS SET Status = ? WHERE Id = ?";
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setNString(1, value ? "Đã duyệt" : "Chưa duyệt");
+            ps.setString(2, id);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        */
+    }
+
+    @Override // Lỗi: Cột 'isEmailed' không có trong DB bạn cung cấp
+    public void updateEmailed(String id, boolean value) {
+        String sql = "UPDATE NEWS SET isEmailed = ? WHERE Id = ?"; // Cột này cần được thêm vào DB
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setBoolean(1, value);
+            ps.setString(2, id);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            // Log lỗi: Cột isEmailed không tồn tại.
+            System.err.println("Lỗi: Cột 'isEmailed' không có trong bảng NEWS.");
+            e.printStackTrace();
+        }
+    }
+    
+    @Override
+    public void incrementViewCount(

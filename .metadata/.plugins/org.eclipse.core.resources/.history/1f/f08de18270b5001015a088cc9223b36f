@@ -1,0 +1,437 @@
+package DAO;
+
+import Entity.News;
+import Utils.Jdbc;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class NewsDAOImpl implements NewsDAO {
+
+    // --- Helper Method ---
+    private News mapResultSetToNews(ResultSet rs) throws SQLException {
+        News n = new News();
+        n.setId(rs.getString("Id"));
+        n.setTitle(rs.getNString("Title"));
+        n.setContent(rs.getNString("Content"));
+        n.setImage(rs.getString("Image"));
+        n.setPostedDate(rs.getDate("PostedDate"));
+        n.setAuthor(rs.getString("Author"));
+        n.setViewCount(rs.getInt("ViewCount"));
+        n.setCategoryId(rs.getString("CategoryId"));
+        n.setHome(rs.getBoolean("Home"));
+        
+        // Xử lý cột Position (NULLable)
+        int pos = rs.getInt("Position");
+        n.setPosition(rs.wasNull() ? null : pos);
+
+        // Xử lý cột Status
+        try {
+            n.setStatus(rs.getNString("Status"));
+        } catch (SQLException ex) {
+            n.setStatus(null); // Không có cột Status trong ResultSet
+        }
+
+        // Xử lý isEmailed (Cột giả định có thể không được SELECT trong một số query)
+        try {
+            n.setEmailed(rs.getBoolean("isEmailed")); 
+        } catch (SQLException ex) {
+            n.setEmailed(false);
+        }
+
+        return n;
+    }
+
+    // --- 1. CRUD Cơ bản ---
+
+    @Override
+    public List<News> findAll() {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                News n = mapResultSetToNews(rs);
+                n.setCategoryName(rs.getNString("CategoryName"));
+                n.setAuthorName(rs.getNString("AuthorName")); 
+                list.add(n);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override 
+    public News findById(String id) {
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            WHERE n.Id = ?
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName")); 
+                    return n;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    @Override
+    public boolean insert(News news) {
+        String sql = """
+            INSERT INTO NEWS (Id, Title, Content, Image, PostedDate, Author, ViewCount, CategoryId, Home, Position, Status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, news.getId());
+            ps.setNString(2, news.getTitle());
+            ps.setNString(3, news.getContent());
+            ps.setString(4, news.getImage());
+            ps.setDate(5, news.getPostedDate() == null ? new java.sql.Date(System.currentTimeMillis()) : news.getPostedDate());
+            ps.setString(6, news.getAuthor());
+            ps.setInt(7, news.getViewCount());
+            ps.setString(8, news.getCategoryId());
+            ps.setBoolean(9, news.isHome());
+            
+            if (news.getPosition() != null) {
+                ps.setInt(10, news.getPosition());
+            } else {
+                ps.setNull(10, java.sql.Types.INTEGER);
+            }
+            
+            String status = news.getStatus() != null ? news.getStatus() : "Chưa duyệt"; 
+            ps.setNString(11, status);
+            
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    @Override
+    public boolean update(News news) {
+        String sql = """
+            UPDATE NEWS
+            SET Title = ?, Content = ?, Image = ?, PostedDate = ?, Author = ?, ViewCount = ?, CategoryId = ?, Home = ?, Position = ?, Status = ?
+            WHERE Id = ?
+            """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setNString(1, news.getTitle());
+            ps.setNString(2, news.getContent());
+            ps.setString(3, news.getImage());
+            ps.setDate(4, news.getPostedDate() == null ? new java.sql.Date(System.currentTimeMillis()) : news.getPostedDate());
+            ps.setString(5, news.getAuthor());
+            ps.setInt(6, news.getViewCount());
+            ps.setString(7, news.getCategoryId());
+            ps.setBoolean(8, news.isHome());
+            
+            if (news.getPosition() != null) {
+                ps.setInt(9, news.getPosition());
+            } else {
+                ps.setNull(9, java.sql.Types.INTEGER);
+            }
+            
+            ps.setNString(10, news.getStatus() != null ? news.getStatus() : "Chưa duyệt");
+            ps.setString(11, news.getId());
+            
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    @Override
+    public boolean delete(String id) {
+        String sql = "DELETE FROM NEWS WHERE Id = ?";
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // --- 2. Truy vấn theo Tiêu chí ---
+    
+    @Override // Sửa: Thêm JOIN CategoryName
+    public List<News> findByCategory(String categoryId) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName 
+            FROM NEWS n
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            WHERE n.CategoryId = ? 
+            ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, categoryId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    list.add(n);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // selectByAuthor -> findByAuthor
+    public List<News> findByAuthor(String authorId) {
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n 
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            WHERE n.Author = ? 
+            ORDER BY n.PostedDate DESC
+        """;
+        List<News> list = new ArrayList<>();
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, authorId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // searchNews
+    public List<News> searchNews(String keyword) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+             SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+             FROM NEWS n
+             LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+             LEFT JOIN USERS u ON n.Author = u.Id
+             WHERE n.Title LIKE ? OR n.Content LIKE ? 
+             ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            String kw = "%" + keyword.trim() + "%";
+            ps.setNString(1, kw);
+            ps.setNString(2, kw);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+    
+    @Override // getApprovedNewsByCategoryName -> findByCategoryName (sẽ dùng Status = N'Đã duyệt' trong Service Layer)
+    public List<News> findByCategoryName(String categoryName) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+             SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+             FROM NEWS n
+             JOIN CATEGORIES c ON n.CategoryId = c.Id
+             LEFT JOIN USERS u ON n.Author = u.Id
+             WHERE c.Name = ? 
+             ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setNString(1, categoryName);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News news = mapResultSetToNews(rs);
+                    news.setCategoryName(rs.getNString("CategoryName"));
+                    news.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(news);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    // --- 3. Truy vấn đặc biệt ---
+
+    @Override // Sửa Lỗi: Sử dụng TOP (?) và PreparedStatement
+    public List<News> findTopViewed(int limit) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT TOP (?) n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n 
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            ORDER BY n.ViewCount DESC, n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    @Override // Sửa: Thêm TOP (?) để tối ưu
+    public List<News> findLatest(int limit) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT TOP (?) n.*, c.Name AS CategoryName, u.Fullname AS AuthorName 
+            FROM NEWS n 
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+    
+    @Override // findHomeByPosition
+    public List<News> findHomeByPosition(int position) {
+        List<News> list = new ArrayList<>();
+        String sql = """
+            SELECT n.*, c.Name AS CategoryName, u.Fullname AS AuthorName
+            FROM NEWS n
+            LEFT JOIN CATEGORIES c ON n.CategoryId = c.Id
+            LEFT JOIN USERS u ON n.Author = u.Id
+            WHERE n.Home = 1 AND n.Position = ? AND n.Status = N'Đã duyệt' 
+            ORDER BY n.PostedDate DESC
+        """;
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, position);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    News n = mapResultSetToNews(rs);
+                    n.setCategoryName(rs.getNString("CategoryName"));
+                    n.setAuthorName(rs.getNString("AuthorName"));
+                    list.add(n);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+
+    // --- 4. Cập nhật Trạng thái/Hành động ---
+    
+    @Override // updateStatus
+    public boolean updateStatus(String id, String newStatus) {
+        String sql = "UPDATE NEWS SET Status = ? WHERE Id = ?";
+        try (Connection conn = Jdbc.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setNString(1, newStatus);
+            ps.setString(2, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    @Override // updateFeature -> updateHomeStatus (Sử dụng cột Home)
+    public void updateHomeStatus(String id, boolean isHome) {
+        String sql = "UPDATE NEWS SET Home = ? WHERE Id = ?"; 
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setBoolean(1, isHome);
+            ps.setString(2, id);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override // updateEmailed -> updateEmailedStatus (Giả định cột có tồn tại)
+    public void updateEmailedStatus(String id, boolean value) {
+        String sql = "UPDATE NEWS SET isEmailed = ? WHERE Id = ?"; 
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setBoolean(1, value);
+            ps.setString(2, id);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            // Cảnh báo nếu cột không tồn tại
+            System.err.println("Cảnh báo: Lỗi khi cập nhật isEmailed. Đảm bảo cột 'isEmailed' tồn tại trong DB.");
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void incrementViewCount(String id) {
+        String sql = "UPDATE NEWS SET ViewCount = ISNULL(ViewCount, 0) + 1 WHERE Id = ?";
+        try (Connection conn = Jdbc.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}

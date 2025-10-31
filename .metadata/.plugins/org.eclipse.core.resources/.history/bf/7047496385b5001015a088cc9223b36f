@@ -1,0 +1,196 @@
+package adminServlet;
+
+import DAO.CategoryDAO;
+import DAO.CategoryDAOImpl;
+import DAO.NewsDAO;
+import DAO.NewsDAOImpl;
+import Entity.Category;
+import Entity.News;
+import Entity.User;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
+
+import java.io.File;
+import java.io.IOException;
+import java.sql.Date;
+import java.util.List;
+import java.util.UUID;
+
+// Đặt cấu hình MultipartConfig chi tiết hơn cho file upload lớn
+@WebServlet("/admin/add_edit_news")
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2, // 2MB
+    maxFileSize = 1024 * 1024 * 10,      // 10MB
+    maxRequestSize = 1024 * 1024 * 50    // 50MB
+)
+public class AdminAddEditNewsServlet extends HttpServlet {
+
+    private static final String UPLOAD_DIR = "uploads";
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        // Cấu hình encoding cho response (quan trọng cho tiếng Việt)
+        resp.setCharacterEncoding("UTF-8");
+        req.setCharacterEncoding("UTF-8");
+
+        CategoryDAO categoryDAO = new CategoryDAOImpl();
+        List<Category> categories = categoryDAO.findAll();
+        req.setAttribute("categories", categories);
+
+        String id = req.getParameter("id");
+        if (id != null && !id.isEmpty()) {
+            NewsDAO newsDAO = new NewsDAOImpl();
+            // Sử dụng getById để lấy cả CategoryName và AuthorName nếu cần hiển thị
+            News news = newsDAO.getById(id); 
+            req.setAttribute("news", news);
+        }
+
+        // FIX 1: Đồng nhất JSP đích là add_edit_news.jsp
+        req.getRequestDispatcher("/admin/add_edit_news.jsp").forward(req, resp);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        req.setCharacterEncoding("UTF-8");
+        resp.setCharacterEncoding("UTF-8");
+
+        HttpSession session = req.getSession();
+        User user = (User) session.getAttribute("user");
+
+        // Kiểm tra phiên đăng nhập
+        if (user == null) {
+            resp.sendRedirect(req.getContextPath() + "/login");
+            return;
+        }
+
+        // 1. LẤY DỮ LIỆU TỪ FORM (Đã được lấy đầy đủ, bao gồm cả các trường cần thiết)
+        String id = req.getParameter("id");
+        String title = req.getParameter("title");
+        String content = req.getParameter("content");
+        String categoryId = req.getParameter("categoryId");
+        String postedDateStr = req.getParameter("postedDate");
+        String positionStr = req.getParameter("position");
+        
+        String oldImage = req.getParameter("oldImage");
+        String authorId = user.getId();
+        
+        String status = req.getParameter("status"); 
+        
+        Integer position = (positionStr != null && !positionStr.isEmpty()) ? Integer.valueOf(positionStr) : null;
+        boolean home = false; 
+
+        // 2. XỬ LÝ ID VÀ VIEWS (và chuẩn bị Entity News)
+        NewsDAO newsDAO = new NewsDAOImpl();
+        News news = new News(); // Khởi tạo Entity để chứa dữ liệu form (kể cả khi thất bại)
+        boolean isUpdating = (id != null && !id.isEmpty());
+        String successMessage = "";
+        
+        if (isUpdating) {
+            news.setId(id);
+            News oldNews = newsDAO.getById(id);
+            if (oldNews != null) {
+                news.setViewCount(oldNews.getViewCount());
+                successMessage = "Cập nhật tin tức thành công!";
+            } else {
+                news.setViewCount(0); 
+            }
+        } else {
+            news.setId(UUID.randomUUID().toString());
+            news.setViewCount(0); 
+            successMessage = "Thêm tin tức mới thành công!";
+        }
+
+        // 3. XỬ LÝ FILE UPLOAD (Đảm bảo logic này không ném ngoại lệ nếu không cần thiết)
+        Part imagePart = req.getPart("image");
+        String fileName = oldImage; 
+        String uploadPath = getServletContext().getRealPath(File.separator + UPLOAD_DIR);
+        File uploadDir = new File(uploadPath);
+        
+        if (!uploadDir.exists()) uploadDir.mkdirs();
+
+        if (imagePart != null && imagePart.getSize() > 0 && imagePart.getSubmittedFileName() != null && !imagePart.getSubmittedFileName().isEmpty()) {
+            fileName = UUID.randomUUID().toString() + "_" + imagePart.getSubmittedFileName();
+            // Ghi file vào thư mục UPLOADS
+            imagePart.write(uploadPath + File.separator + fileName);
+        } else if (fileName == null || fileName.isEmpty()) {
+            // Trường hợp thêm mới mà không có ảnh, dùng default.jpg
+            fileName = "default.jpg"; 
+        }
+
+        // 4. GÁN DỮ LIỆU CUỐI CÙNG VÀO ENTITY
+        news.setTitle(title);
+        news.setContent(content);
+        news.setImage(fileName);
+        
+        try {
+            // Tạm thời gán Date.valueOf. Nếu có lỗi format, xử lý bên dưới.
+            news.setPostedDate(Date.valueOf(postedDateStr));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            // Nếu có lỗi, gán ngày hiện tại hoặc dùng ngày mặc định
+            news.setPostedDate(new Date(System.currentTimeMillis()));
+        }
+        
+        news.setAuthor(authorId);
+        news.setCategoryId(categoryId);
+        news.setHome(home); 
+        news.setPosition(position);
+        news.setStatus(status != null ? status : "Chưa duyệt"); 
+
+        // 5. GỌI DAO VÀ CHUYỂN HƯỚNG
+        boolean result = newsDAO.insertOrUpdate(news, isUpdating); // Giả định có method insertOrUpdate để xử lý tối ưu hơn, nếu không dùng (isUpdating ? update : insert)
+
+        if (result) {
+            // LOGIC THÀNH CÔNG: Dùng Redirect (chuyển trang mới)
+            
+            // Xóa ảnh cũ nếu có ảnh mới
+            if (isUpdating && oldImage != null && !oldImage.isEmpty() && !oldImage.equals(fileName) && !oldImage.equals("default.jpg")) {
+                File oldFile = new File(uploadPath + File.separator + oldImage);
+                if (oldFile.exists()) {
+                    oldFile.delete();
+                }
+            }
+
+            String redirectURL = user.isRole() 
+                ? req.getContextPath() + "/admin/manage_all_news?message=" + successMessage
+                : req.getContextPath() + "/reporter/manage_my_news?message=" + successMessage;
+                
+            resp.sendRedirect(redirectURL);
+            
+        } else {
+            // LOGIC THẤT BẠI: Dùng FORWARD (giữ nguyên request và attribute)
+            String errorMessage = "Lưu tin thất bại! Dữ liệu không hợp lệ hoặc lỗi Database.";
+            
+            // 1. Lấy lại Categories để JSP hiển thị menu dropdown
+            CategoryDAO categoryDAO = new CategoryDAOImpl();
+            req.setAttribute("categories", categoryDAO.findAll()); 
+            
+            // 2. Gán lại đối tượng news (đã chứa dữ liệu form cũ)
+            req.setAttribute("news", news);
+            
+            // 3. Gán thông báo lỗi (dùng attribute "error" như trong JSP đã sửa)
+            req.setAttribute("error", errorMessage);
+            
+            // 4. FIX 2: Forward về đúng trang form add_edit_news.jsp
+            req.getRequestDispatcher("/admin/add_edit_news.jsp").forward(req, resp);
+        }
+    }
+    
+    // Giả định bạn có thể có một phương thức DAO chung:
+    /*
+    private boolean insertOrUpdate(News news, boolean isUpdating) {
+        // Tùy chỉnh logic trong DAO của bạn
+        return isUpdating ? newsDAO.update(news) : newsDAO.insert(news);
+    }
+    */
+}

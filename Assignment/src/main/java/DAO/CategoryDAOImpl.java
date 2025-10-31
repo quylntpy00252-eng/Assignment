@@ -88,4 +88,18 @@ public class CategoryDAOImpl implements CategoryDAO {
         c.setName(rs.getNString("Name"));
         return c;
     }
+    public String findMaxId() {
+        // Truy vấn để lấy ID lớn nhất theo thứ tự giảm dần (ORDER BY Id DESC) và chỉ lấy 1 dòng
+        String sql = "SELECT TOP 1 Id FROM CATEGORIES ORDER BY Id DESC";
+        try (Connection con = Jdbc.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getString("Id");
+            }
+        } catch (SQLException e) {
+            // e.printStackTrace(); // Tùy chọn: có thể bỏ qua lỗi này nếu bảng trống
+        }
+        return null; // Trả về null nếu bảng hoàn toàn trống
+    }
 }

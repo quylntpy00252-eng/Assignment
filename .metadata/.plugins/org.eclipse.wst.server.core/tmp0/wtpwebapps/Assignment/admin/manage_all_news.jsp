@@ -1,9 +1,11 @@
+
 <%@ page contentType="text/html; charset=UTF-8" language="java" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
 
 <%@ page import="Entity.User" %>
 <%
+    // KHÔNG THAY ĐỔI: Đây là nơi an toàn để lấy User và tạo biến fullname
     User user = (User) session.getAttribute("user");
     String fullname = (user != null && user.getFullname() != null) ? user.getFullname() : "Quản trị viên";
 %>
@@ -18,71 +20,195 @@
     <title>ABC News - Quản lý tất cả tin tức</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
-    <style>
+
+
+<style>
+/* ================================================= */
+/* CƠ SỞ CHUNG: Tông màu dịu nhẹ, tương phản cao */
+/* (Đảm bảo đồng bộ với các trang khác) */
+/* ================================================= */
+body {
+    background-color: #eef1f5; /* Nền xám nhạt hiện đại */
+    color: #495057; /* Màu chữ chính */
+    font-family: 'Roboto', sans-serif;
+}
+
+/* HEADER & MENU */
+.site-header {
+    background-color: #1a2a47; /* Xanh Navy Sâu, chuyên nghiệp */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.logo { color: #ffffff; font-weight: 700; font-size: 24px; }
+.logo span { color: #fcc419; } /* Vàng ấm */
+
+/* Menu */
+.menu a {
+    color: #c7d1e0;
+    transition: color 0.2s, background-color 0.2s;
+    padding: 15px 10px;
+}
+.menu a:hover { color: #ffffff; }
+.menu a.active {
+    color: #ffffff;
+    border-bottom: 3px solid #fcc419; /* Vàng nổi bật */
+}
+.header-actions { color: #c7d1e0; }
+.header-actions strong { color: #ffffff; font-weight: 500; }
+.logout-btn {
+    background: #e53935; /* Đỏ dịu hơn */
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: white;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+.logout-btn:hover { background: #d32f2f; }
+
+/* ================================================= */
+/* CỘT NỘI DUNG CHÍNH (Center-Col) */
+/* ================================================= */
+.center-col {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-top: 15px;
+}
+.center-col h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a2a47; /* Xanh Navy Sâu */
+    margin-bottom: 25px;
+    border-bottom: 3px solid #fcc419; /* Vàng ấm nổi bật */
+    padding-bottom: 10px;
+}
+
+/* Nút Thêm tin mới */
+.action-bar { margin-bottom: 20px; }
+.action-bar .add-news-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #1a2a47; /* Xanh Navy Sâu */
+    color: #FFFFFF;
+    border-radius: 8px; /* Bo góc lớn hơn */
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 700;
+    transition: background 0.3s, transform 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.action-bar .add-news-btn:hover {
+    background: #273e63; /* Xanh Navy nhạt hơn khi hover */
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ================================================= */
+/* BẢNG & NÚT HÀNH ĐỘNG (Đồng bộ) */
+/* ================================================= */
+
+.news-table {
+    width: 100%;
+    border-collapse: separate; /* Dùng separate để áp dụng border-radius/box-shadow */
+    border-spacing: 0;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    overflow: hidden; /* Cần thiết để bo góc hoạt động */
+}
+
+.news-table thead th {
+    background: #1a2a47; /* Xanh Navy Sâu */
+    color: #FFFFFF;
+    padding: 15px 10px;
+    text-align: left;
+    font-weight: 600;
+    /* Xóa các border-top, bottom không cần thiết */
+}
+
+.news-table tbody tr {
+    border-bottom: 1px solid #e9ecef;
+}
+.news-table tbody tr:last-child {
+    border-bottom: none;
+}
+.news-table tbody tr:hover {
+    background: #f1f4f8; /* Xám nhẹ hơn khi hover */
+}
+.news-table td {
+    padding: 12px 10px;
+    vertical-align: middle;
+    color: #495057;
+}
+
+/* NÚT HÀNH ĐỘNG TRONG BẢNG (action-btn) */
 .action-btn {
     display: inline-block;
-    padding: 8px 16px;
-    font-size: 14px;
+    padding: 6px 12px;
+    font-size: 13px;
     font-weight: 600;
-    border-radius: 6px;
+    border-radius: 4px;
     text-decoration: none;
     color: #fff;
     line-height: 1;
-    margin: 2px;
+    margin: 3px 0;
     transition: all 0.2s ease-in-out;
 }
 
+/* Sửa: Xanh dương tiêu chuẩn */
 .edit-btn {
-    background-color: #3498db; 
+    background-color: #007bff;
 }
 .edit-btn:hover {
-    background-color: #2980b9;
+    background-color: #0056b3;
 }
 
+/* Xóa: Đỏ dịu */
 .delete-btn {
-    background-color: #e74c3c; 
+    background-color: #e53935;
 }
 .delete-btn:hover {
-    background-color: #c0392b;
+    background-color: #c62828;
 }
 
+/* Đưa lên trang chủ (Feature): Vàng Ấm - Nổi bật nhất */
 .feature-btn {
-    background-color: #f39c12; 
+    background-color: #fcc419;
+    color: #1a2a47; /* Chữ Xanh Navy đậm */
+    font-weight: 700;
 }
 .feature-btn:hover {
-    background-color: #e67e22;
+    background-color: #ffbe00;
 }
 
+/* Gửi email: Xanh Navy - Hành động liên quan đến hệ thống */
 .email-btn {
-    background-color: #9b59b6; 
+    background-color: #1a2a47;
 }
 .email-btn:hover {
-    background-color: #8e44ad;
+    background-color: #273e63;
 }
 
+/* Duyệt (Approve): Xanh lá tiêu chuẩn */
 .approve-btn {
-    background-color: #27ae60; 
+    background-color: #28a745;
 }
 .approve-btn:hover {
-    background-color: #2ecc71;
+    background-color: #1e7e34;
 }
 
-.action-btn.disabled,
-.approve-btn.disabled,
-.feature-btn.disabled,
-.email-btn.disabled {
-    background-color: #95a5a6;
+.action-btn.disabled {
+    background-color: #adb5bd; /* Xám mờ */
     cursor: not-allowed;
+    opacity: 0.6;
 }
 
-      
 </style>
     
 </head>
 <body>
 
 
-<!-- Header -->
 <header class="site-header">
     <div class="container">
         <div class="logo">ABC <span>News</span></div>
@@ -90,14 +216,14 @@
     <a href="${pageContext.request.contextPath}/index"
        class="${fn:contains(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
 
-    <a href="${pageContext.request.contextPath}/category?name=Văn hóa"
-   class="${fn:contains(pageContext.request.requestURI, 'Văn hóa') ? 'active' : ''}">Văn hóa</a>
-
-<a href="${pageContext.request.contextPath}/category?name=Pháp luật"
-   class="${fn:contains(pageContext.request.requestURI, 'Pháp luật') ? 'active' : ''}">Pháp luật</a>
-
-<a href="${pageContext.request.contextPath}/category?name=Thể thao"
-   class="${fn:contains(pageContext.request.requestURI, 'Thể thao') ? 'active' : ''}">Thể thao</a>
+    <%-- KHỐI CODE ĐÃ SỬA: TỰ ĐỘNG TẠO MENU DỰA TRÊN CATEGORIES --%>
+    <c:forEach var="c" items="${categories}">
+        <a href="${pageContext.request.contextPath}/category?name=${c.name}"
+           class="${fn:contains(pageContext.request.requestURI, c.name) ? 'active' : ''}">
+            ${c.name}
+        </a>
+    </c:forEach>
+    <%-- KẾT THÚC KHỐI TỰ ĐỘNG TẠO MENU --%>
 
 
     <a href="${pageContext.request.contextPath}/admin"
@@ -105,9 +231,8 @@
 </nav>
 
 
-
 <div class="header-actions">
-    Xin chào <strong><%= user.getFullname() != null ? user.getFullname() : "Admin" %></strong>
+    Xin chào <strong><%= fullname %></strong>
     <a href="${pageContext.request.contextPath}/logout" class="logout-btn">Đăng xuất</a>
 </div>
     </div>
@@ -117,7 +242,7 @@
     <section class="center-col">
         <h2>Quản lý tất cả tin tức</h2>
         <div class="action-bar">
-                    <a href="${pageContext.request.contextPath}/add_edit_news" class="add-news-btn">Thêm tin mới</a>
+            <a href="${pageContext.request.contextPath}/admin/add_edit_news" class="add-news-btn">Thêm tin mới</a>
         </div>
 
         <table class="news-table">
@@ -141,19 +266,20 @@
         <td>${n.status}</td>
      <td>
 	<a href="${pageContext.request.contextPath}/admin/add_edit_news?id=${n.id}" class="action-btn edit-btn">Sửa</a>
-    <a href="delete_news?id=${n.id}" class="action-btn delete-btn"
+    
+    <a href="${pageContext.request.contextPath}/admin/delete_news?id=${n.id}" class="action-btn delete-btn"
        onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
 
     <c:if test="${!n.home}">
-        <a href="feature_news?id=${n.id}" class="action-btn feature-btn">Đưa lên trang chủ</a>
+        <a href="${pageContext.request.contextPath}/admin/feature_news?id=${n.id}" class="action-btn feature-btn">Đưa lên trang chủ</a>
     </c:if>
 
     <c:if test="${n.status eq 'Đã duyệt' && !n.emailed}">
-        <a href="send_email?id=${n.id}" class="action-btn email-btn">Gửi email</a>
+        <a href="${pageContext.request.contextPath}/admin/send_email?id=${n.id}" class="action-btn email-btn">Gửi email</a>
     </c:if>
 
     <c:if test="${n.status ne 'Đã duyệt'}">
-        <a href="approve_news?id=${n.id}" class="action-btn approve-btn">Duyệt</a>
+        <a href="${pageContext.request.contextPath}/admin/approve_news?id=${n.id}" class="action-btn approve-btn">Duyệt</a>
     </c:if>
 </td>
 
@@ -167,7 +293,6 @@
     </section>
 </div>
 
-<!-- Footer -->
 <%@ include file="../includes/news_index_footer.jsp" %>
 </body>
 </html>

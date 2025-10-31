@@ -1,0 +1,417 @@
+<%@ page contentType="text/html; charset=UTF-8" language="java" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ page import="Entity.User" %>
+<%
+    User user = (User) session.getAttribute("user");
+%>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABC News - Trang Quản Trị (Preview)</title>
+    <!-- Tải Font Roboto -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="/css/style.css"> <!-- Giả định CSS nền tảng -->
+
+    <style>
+        /* ================================================= */
+        /* CƠ SỞ CHUNG: Tông màu dịu nhẹ, tương phản cao */
+        /* ================================================= */
+        body {
+            background-color: #eef1f5; /* Nền xám nhạt hiện đại */
+            color: #495057; /* Màu chữ chính */
+            font-family: 'Roboto', sans-serif;
+        }
+        /* Layout cơ bản cho preview (mô phỏng container-3col) */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        .container-3col {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr; /* Cột trái, cột giữa (chính), cột phải */
+            gap: 20px;
+            padding: 20px 0;
+        }
+        @media (max-width: 900px) {
+            .container-3col {
+                grid-template-columns: 1fr; /* Chuyển sang 1 cột trên thiết bị nhỏ */
+            }
+        }
+        a { text-decoration: none; }
+        
+        /* HEADER & MENU */
+        .site-header {
+            background-color: #1a2a47; /* Xanh Navy Sâu, chuyên nghiệp */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .site-header .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo { color: #ffffff; font-weight: 700; font-size: 24px; padding: 10px 0; }
+        .logo span { color: #fcc419; } /* Vàng ấm */
+
+        /* Điều chỉnh Menu (giả sử menu nằm trong header) */
+        .menu {
+            display: flex;
+            gap: 15px;
+            margin-right: auto; /* Đẩy menu sang trái khỏi actions */
+            margin-left: 20px;
+        }
+        .menu a {
+            color: #c7d1e0; /* Màu chữ menu nhẹ nhàng */
+            transition: color 0.2s, background-color 0.2s;
+            padding: 15px 10px;
+        }
+        .menu a:hover {
+            color: #ffffff;
+        }
+        .menu a.active {
+            color: #ffffff;
+            border-bottom: 3px solid #fcc419; /* Vàng nổi bật */
+        }
+        
+        /* Actions (Search, Xin chào, Logout) */
+        .header-actions {
+            color: #c7d1e0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header-actions strong {
+            color: #ffffff;
+            font-weight: 500;
+        }
+        .logout-btn {
+            background: #e53935; /* Đỏ dịu hơn */
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .logout-btn:hover { background: #d32f2f; }
+        /* Search Bar Styling (Cần giả định cấu trúc base CSS cho search) */
+        .search-form { display: flex; align-items: center; gap: 5px; }
+        .search-form input {
+            border-radius: 6px;
+            border: 1px solid #c7d1e0;
+            padding: 5px 10px;
+            background-color: #273e63;
+            color: #ffffff;
+        }
+        .search-form button {
+            background: none;
+            border: none;
+            color: #c7d1e0;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+
+        /* ================================================= */
+        /* BỐ CỤC CHÍNH (3 Cột) */
+        /* ================================================= */
+        .center-col, .right-col, .left-col {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        h2 {
+            color: #1a2a47;
+            font-size: 26px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .box h3 {
+            color: #1a2a47;
+            font-size: 18px;
+            border-bottom: 2px solid #fcc419;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .box p, .box li { 
+            font-size: 14px; 
+            color: #6c757d; 
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        /* Mock News List Styling */
+        .news-list-item {
+            list-style: disc inside;
+            margin-left: 5px;
+            color: #1a2a47;
+            font-weight: 500;
+        }
+        .news-list-item a { color: #007bff; }
+        .news-list-item a:hover { text-decoration: underline; }
+        
+        /* NÚT ĐỔI MẬT KHẨU */
+        .change-pass-btn {
+            display: block;
+            background: #fcc419; /* Vàng ấm */
+            color: #1a2a47; /* Chữ xanh navy đậm */
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 25px;
+            transition: 0.3s;
+            box-shadow: 0 4px 8px rgba(252, 196, 25, 0.3);
+        }
+        .change-pass-btn:hover { background: #ffbe00; }
+
+
+        /* ================================================= */
+        /* NÚT HÀNH ĐỘNG QUẢN TRỊ (CENTER-COL) */
+        /* ================================================= */
+        .admin-actions { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; /* Tăng khoảng cách giữa các nút */
+        }
+        .admin-action-btn {
+            display: block; /* Đảm bảo nút chiếm hết chiều ngang */
+            margin: 0; /* Xóa margin cũ */
+            padding: 15px 20px; /* Tăng padding để nút lớn và dễ bấm */
+            color: white; 
+            font-weight: 700; 
+            font-size: 16px;
+            border-radius: 10px; /* Bo góc nhẹ */
+            text-decoration: none; 
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            text-align: center;
+        }
+        
+        /* Nút Người dùng (Primary - Xanh dương) */
+        .admin-action-btn.primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        .admin-action-btn.primary:hover {
+            background: linear-gradient(135deg, #0056b3, #003d80);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4);
+        }
+
+        /* Nút Loại tin (Success - Xanh lá) */
+        .admin-action-btn.success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+        }
+        .admin-action-btn.success:hover {
+            background: linear-gradient(135deg, #1e7e34, #155d27);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        /* Nút Bài viết (Warning - Cam/Vàng) */
+        .admin-action-btn.warning {
+            background: linear-gradient(135deg, #ff9800, #f57c00); /* Cam ấm */
+            color: white; /* Chữ trắng */
+        }
+        .admin-action-btn.warning:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(255, 152, 0, 0.4);
+        }
+        
+
+        /* ================================================= */
+        /* POPUP ĐỔI MẬT KHẨU */
+        /* ================================================= */
+        .popup-overlay {
+            position: fixed; inset: 0;
+            background: rgba(26, 42, 71, 0.8); /* Nền overlay tối hơn, đồng bộ với header */
+            display: none; justify-content: center; align-items: center;
+            z-index: 9999;
+        }
+        .popup-form {
+            position: relative;
+            background: #fff;
+            width: 380px; padding: 40px 30px 30px; /* Tăng padding */
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            text-align: center;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .popup-form h3 { color: #1a2a47; margin-bottom: 10px; font-weight: 500; }
+        .popup-form p { font-size: 14px; color: #6c757d; margin-bottom: 25px; }
+        .popup-form input {
+            width: 100%; padding: 12px; margin-bottom: 18px;
+            border: 1px solid #ced4da; border-radius: 8px; font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .popup-form input:focus {
+             border-color: #007bff;
+        }
+        .popup-form button[type="submit"] {
+            width: 100%; padding: 12px 25px;
+            background: #007bff; /* Thay màu vàng bằng màu xanh dương chuyên nghiệp */
+            color: white;
+            border: none; border-radius: 8px;
+            font-weight: 700; cursor: pointer; transition: 0.3s;
+        }
+        .popup-form button:hover { 
+            background: #0056b3; 
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+        }
+        .close-icon {
+            position: absolute; top: 15px; right: 15px;
+            background: none; border: none;
+            font-size: 24px; font-weight: 300; color: #adb5bd;
+            cursor: pointer; transition: color 0.2s;
+        }
+        .close-icon:hover { color: #dc3545; }
+        @keyframes fadeIn { from {opacity: 0; transform: scale(0.9);} to {opacity: 1; transform: scale(1);} }
+
+        /* Mock Left Column Styling */
+        .left-col h3 {
+            color: #1a2a47;
+            font-size: 18px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .category-list {
+            list-style: none;
+            padding: 0;
+        }
+        .category-list li {
+            margin-bottom: 10px;
+        }
+        .category-list a {
+            display: block;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+            color: #495057;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .category-list a:hover {
+            background-color: #e9ecef;
+            color: #1a2a47;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="logo">ABC <span>News</span></div>
+            <nav class="menu">
+                <a href="/app/index" class="">Trang chủ</a>
+                <a href="/app/admin" class="active">Quản trị</a>
+            </nav>
+            
+            <div class="header-actions">
+                <form action="/app/search" method="get" class="search-form">
+                    <input type="text" name="keyword" placeholder="Tìm kiếm tin tức..." class="search-bar" required>
+                    <button type="submit" class="search-btn">🔍</button>
+                </form>
+    
+                <!-- Giả định user.fullname = "Nguyễn Văn Admin" -->
+                Xin chào <strong>Nguyễn Văn Admin</strong>
+                <a href="/app/logout" class="logout-btn">Đăng xuất</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="container-3col">
+            <!-- MOCK: news_index_left.jsp (Cột trái) -->
+            <aside class="left-col">
+                <h3>Danh mục Tin tức</h3>
+                <ul class="category-list">
+                    <li><a href="#">Thời sự</a></li>
+                    <li><a href="#">Kinh doanh</a></li>
+                    <li><a href="#">Công nghệ</a></li>
+                    <li><a href="#">Thể thao</a></li>
+                    <li><a href="#">Giải trí</a></li>
+                </ul>
+            </aside>
+            <!-- END MOCK: news_index_left.jsp -->
+
+            <section class="center-col">      
+                <h2>Quản trị hệ thống</h2>
+                <p style="color: #6c757d; margin-bottom: 25px;">Chào mừng bạn đến với trang quản trị. Vui lòng chọn một chức năng bên dưới để bắt đầu quản lý nội dung và người dùng.</p>
+                <div class="admin-actions">
+                
+                <a href="/app/admin/manage_users" class="admin-action-btn primary">
+                    Quản lý người dùng
+                </a>
+
+                <a href="/app/admin/manage_categories" class="admin-action-btn success">
+                    Quản lý loại tin
+                </a>
+
+                <a href="/app/admin/manage_all_news" class="admin-action-btn warning">
+                    Quản lý bài viết
+                </a>
+                    
+                </div>
+            </section>
+            
+            <aside class="right-col">
+                <!-- Nút này kích hoạt Popup -->
+                <a href="#" class="change-pass-btn" onclick="openPopup(event)">Đổi mật khẩu</a>
+                
+                <div class="box">
+                    <h3>Tin tức hấp dẫn</h3>
+                    <ul>
+                        <!-- MOCK: news_index_center.jsp (Tin tức gợi ý) -->
+                        <li class="news-list-item"><a href="#">Giá vàng SJC biến động mạnh sau phiên họp</a></li>
+                        <li class="news-list-item"><a href="#">Công ty A ra mắt chip xử lý AI thế hệ mới</a></li>
+                        <li class="news-list-item"><a href="#">Kết quả vòng loại World Cup khu vực Châu Á</a></li>
+                        <li class="news-list-item"><a href="#">Khám phá văn hóa ẩm thực miền Tây</a></li>
+                        <!-- END MOCK: news_index_center.jsp -->
+                    </ul>
+                </div> 
+            </aside>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="popupOverlay">
+        <div class="popup-form">
+            <button type="button" class="close-icon" onclick="closePopup()">×</button>
+            <h3>Đổi mật khẩu</h3>
+            <p>Vui lòng nhập thông tin để thay đổi mật khẩu của bạn</p>
+
+            <form action="/app/changePassword" method="post">
+                <input type="password" name="oldPassword" placeholder="Mật khẩu cũ" required>
+                <input type="password" name="newPassword" placeholder="Mật khẩu mới" required>
+                <input type="password" name="confirmPassword" placeholder="Xác nhận mật khẩu mới" required>
+                <button type="submit">Xác nhận</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MOCK: news_index_footer.jsp -->
+    <footer style="background-color: #1a2a47; color: #c7d1e0; text-align: center; padding: 20px 0; margin-top: 30px;">
+        <div class="container">
+            <p>&copy; 2025 ABC News. Trang Quản Trị - Mọi quyền được bảo lưu.</p>
+        </div>
+    </footer>
+    <!-- END MOCK: news_index_footer.jsp -->
+
+    <script>
+        function openPopup(event) {
+            // Ngăn chặn hành vi mặc định của thẻ <a> (chuyển hướng)
+            if (event) event.preventDefault(); 
+            document.getElementById('popupOverlay').style.display = 'flex';
+        }
+        function closePopup() {
+            document.getElementById('popupOverlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

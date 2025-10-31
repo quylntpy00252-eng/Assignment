@@ -1,0 +1,152 @@
+package adminServlet;
+
+import DAO.CategoryDAO;
+import DAO.CategoryDAOImpl;
+import DAO.NewsDAO;
+import DAO.NewsDAOImpl;
+import Entity.Category;
+import Entity.News;
+import Entity.User;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
+
+import java.io.File;
+import java.io.IOException;
+import java.sql.Date;
+import java.util.List;
+import java.util.UUID;
+import java.sql.Date;
+
+@WebServlet("/admin/add_edit_news")
+@MultipartConfig
+public class AdminAddEditNewsServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        CategoryDAO categoryDAO = new CategoryDAOImpl();
+        List<Category> categories = categoryDAO.findAll();
+        req.setAttribute("categories", categories);
+
+        String id = req.getParameter("id");
+        if (id != null && !id.isEmpty()) {
+            NewsDAO newsDAO = new NewsDAOImpl();
+            News news = newsDAO.findById(id);
+            req.setAttribute("news", news);
+        }
+
+        req.getRequestDispatcher("/admin/edit_news.jsp").forward(req, resp);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
+        req.setCharacterEncoding("UTF-8");
+        resp.setCharacterEncoding("UTF-8");
+
+        HttpSession session = req.getSession();
+        User user = (User) session.getAttribute("user");
+
+        if (user == null) {
+            resp.sendRedirect(req.getContextPath() + "/login"); 
+            return;
+        }
+
+        String id = req.getParameter("id"); 
+        String title = req.getParameter("title");
+        String content = req.getParameter("content");
+        String categoryId = req.getParameter("categoryId");
+        String positionStr = req.getParameter("position");
+        String oldImage = req.getParameter("oldImage");
+        String viewCountStr = req.getParameter("viewCount");
+        String postedDateStr = req.getParameter("postedDate"); // Lấy chuỗi ngày tháng
+        
+        String status = req.getParameter("status") != null ? req.getParameter("status") : "Chờ duyệt"; 
+        String actionType = (id == null || id.isEmpty()) ? "Thêm mới" : "Cập nhật"; 
+
+        boolean home = "1".equals(req.getParameter("home")) || "true".equalsIgnoreCase(req.getParameter("home"));
+        Integer position = (positionStr != null && !positionStr.isEmpty()) ? Integer.valueOf(positionStr) : null;
+        int viewCount = (viewCountStr != null && !viewCountStr.isEmpty()) ? Integer.parseInt(viewCountStr) : 0;
+
+
+        // Logic Xử lý Upload ảnh (Giữ nguyên)
+        String fileName = oldImage;
+        Part imagePart = req.getPart("image");
+        
+        if (imagePart != null && imagePart.getSize() > 0 && imagePart.getSubmittedFileName() != null && !imagePart.getSubmittedFileName().isEmpty()) {
+            String uploadPath = getServletContext().getRealPath("/uploads");
+            File uploadDir = new File(uploadPath);
+            if (!uploadDir.exists()) uploadDir.mkdirs();
+            
+            String submittedFileName = imagePart.getSubmittedFileName();
+            fileName = UUID.randomUUID() + "_" + submittedFileName; 
+            
+            imagePart.write(uploadPath + File.separator + fileName);
+        }
+        
+        // Tạo đối tượng News
+        News news = new News();
+        news.setId((id == null || id.isEmpty()) ? UUID.randomUUID().toString() : id); 
+        news.setTitle(title);
+        news.setContent(content);
+        news.setImage(fileName != null ? fileName : "default.jpg");
+        
+        // ⭐️ PHẦN SỬA LỖI KIỂU DỮ LIỆU DATE:
+        if (postedDateStr != null && !postedDateStr.isEmpty()) {
+            try {
+                // Chuyển đổi String thành java.sql.Date
+                java.sql.Date postedDateSql = java.sql.Date.valueOf(postedDateStr);
+                news.setPostedDate(postedDateSql); 
+            } catch (IllegalArgumentException e) {
+                // Nếu có lỗi, gán ngày hiện tại
+                news.setPostedDate(new java.sql.Date(System.currentTimeMillis()));
+            }
+        } else {
+            // Nếu không có ngày đăng, gán ngày hiện tại
+            news.setPostedDate(new java.sql.Date(System.currentTimeMillis()));
+        }
+        // ⭐️ KẾT THÚC SỬA LỖI DATE
+        
+        news.setAuthor(user.getId()); 
+        news.setViewCount(viewCount);
+        news.setCategoryId(categoryId);
+        news.setHome(home);
+        news.setPosition(position);
+        news.setStatus(status); 
+        
+        // Gọi DAO để Lưu/Cập nhật (DAO.insert/update)
+        NewsDAO newsDAO = new NewsDAOImpl();
+        boolean result = (id == null || id.isEmpty()) ? newsDAO.insert(news) : newsDAO.update(news);
+
+        // Xử lý kết quả và CHUYỂN HƯỚNG
+        if (result) {
+            // Đặt thông báo thành công vào Session (Flash Message)
+            session.setAttribute("successMessage", "Tin tức đã được **" + actionType + "** thành công!");
+
+            // ⭐️ LỆNH CHUYỂN HƯỚNG VỀ TRANG QUẢN LÝ
+            if (user.isRole()) {
+                // ADMIN: Chuyển hướng đến /admin/manage_all_news
+                resp.sendRedirect(req.getContextPath() + "/admin/manage_all_news");
+            } else {
+                // REPORTER: Chuyển hướng đến trang quản lý tin của phóng viên
+                resp.sendRedirect(req.getContextPath() + "/reporter/manage_my_news");
+            }
+        } else {
+            // Xử lý lỗi
+            session.setAttribute("errorMessage", "Lỗi: Không thể **" + actionType + "** tin tức. Vui lòng thử lại.");
+            
+            // Quay lại form
+            // ... (Cần thêm logic lấy CategoryDAO và setAttribute("categories") nếu muốn quay lại)
+            req.getRequestDispatcher("/admin/edit_news.jsp").forward(req, resp);
+        }
+    }
+}

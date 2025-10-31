@@ -1,0 +1,64 @@
+package indexServlet;
+
+import DAO.UserDAOImpl;
+import Entity.User;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+
+import java.io.IOException;
+
+@WebServlet("/login")
+public class LoginServlet extends HttpServlet {
+
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        // ... (Giữ nguyên logic doGet) ...
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        // **********************************************
+        // THÊM ENCODING ĐỂ ĐẢM BẢO KÝ TỰ ĐẶC BIỆT CHÍNH XÁC
+        request.setCharacterEncoding("UTF-8");
+        response.setCharacterEncoding("UTF-8");
+        // **********************************************
+
+        String email = request.getParameter("email");
+        String password = request.getParameter("password");
+        String redirectURL = request.getParameter("redirectURL");
+
+        UserDAOImpl dao = new UserDAOImpl();
+        User user = dao.login(email, password); // <- Gọi UserDAOImpl
+
+        if (user != null) {
+            // Đăng nhập thành công
+            HttpSession session = request.getSession();
+            session.setAttribute("user", user);
+
+            if (user.isRole()) {
+                response.sendRedirect(request.getContextPath() + "/admin");
+            } else {
+                if (redirectURL != null && !redirectURL.isEmpty()) {
+                    response.sendRedirect(redirectURL); // Đơn giản hóa redirect
+                } else {
+                    response.sendRedirect(request.getContextPath() + "/reporter"); 
+                }
+            }
+
+        } else {
+            // Đăng nhập thất bại
+            if (redirectURL == null || redirectURL.isEmpty()) {
+                redirectURL = "/index";
+            }
+            // Quay lại trang trước đó với thông báo lỗi
+            response.sendRedirect(request.getContextPath() + redirectURL + "?error=1");
+        }
+    }
+}

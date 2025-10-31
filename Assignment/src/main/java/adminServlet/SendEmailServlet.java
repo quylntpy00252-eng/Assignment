@@ -22,7 +22,7 @@ import java.util.Properties;
 public class SendEmailServlet extends HttpServlet {
 
     // 🔹 Cấu hình tài khoản gửi email
-    private static final String FROM_EMAIL = "nghiadvpy00194@gmail.com";
+    private static final String FROM_EMAIL = "quy@gmail.com";
     private static final String APP_PASSWORD = "kmgd lwlf hjxj roqt";
 
     @Override

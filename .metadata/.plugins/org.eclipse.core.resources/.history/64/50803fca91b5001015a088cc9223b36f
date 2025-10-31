@@ -1,0 +1,355 @@
+<%@ page contentType="text/html; charset=UTF-8" language="java" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ page import="Entity.User" %>
+
+<%
+    User user = (User) session.getAttribute("user");
+    String fullname = (user != null && user.getFullname() != null)
+            ? user.getFullname() : "Người dùng";
+    boolean isAdmin = (user != null && user.isRole());
+%>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ABC News - Trang thêm/sửa tin tức.">
+    <meta name="author" content="ABC News">
+    <title>
+        <c:choose>
+            <c:when test="${news != null}">Sửa Tin Tức</c:when>
+            <c:otherwise>Thêm Tin Tức Mới</c:otherwise>
+        </c:choose>
+        - ABC News
+    </title>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+
+    <style>
+    /* ... (Phần CSS đã được cung cấp trước đó, tôi giữ nguyên) ... */
+    /* ================================================= */
+    /* CƠ SỞ CHUNG: Tông màu dịu nhẹ, tương phản cao */
+    /* ================================================= */
+    body {
+        background-color: #eef1f5; /* Nền xám nhạt hiện đại */
+        color: #495057; /* Màu chữ chính */
+        font-family: 'Roboto', sans-serif;
+    }
+
+    /* HEADER & MENU (Đồng bộ với trang Admin trước) */
+    .site-header {
+        background-color: #1a2a47; /* Xanh Navy Sâu, chuyên nghiệp */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .logo { color: #ffffff; font-weight: 700; font-size: 24px; }
+    .logo span { color: #fcc419; } /* Vàng ấm */
+
+    .menu a {
+        color: #c7d1e0;
+        transition: color 0.2s, border-color 0.2s;
+        padding: 15px 10px;
+    }
+    .menu a:hover { color: #ffffff; }
+    .menu a.active {
+        color: #ffffff;
+        border-bottom: 3px solid #fcc419; /* Vàng nổi bật */
+    }
+
+    /* Actions (User Info, Logout) */
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    .user-info {
+        color: #c7d1e0;
+        font-size: 14px;
+    }
+    .user-info strong {
+        color: #ffffff;
+        font-weight: 500;
+    }
+    .logout-btn {
+        background: #e53935; /* Đỏ dịu hơn */
+        padding: 6px 12px;
+        border-radius: 6px;
+        color: white;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+    .logout-btn:hover { background: #d32f2f; }
+
+
+    /* ================================================= */
+    /* KHU VỰC CHÍNH - FORM (center-col) */
+    /* ================================================= */
+    .container {
+        max-width: 1100px; /* Định nghĩa lại kích thước container cho phù hợp */
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+
+    .center-col {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 30px 40px; /* Tăng padding */
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); /* Shadow rõ hơn */
+        margin-top: 30px;
+        margin-bottom: 50px;
+    }
+
+    h2 {
+        color: #1a2a47;
+        font-size: 28px;
+        font-weight: 700;
+        border-bottom: 3px solid #fcc419; /* Nổi bật hơn */
+        padding-bottom: 10px;
+        margin-bottom: 30px;
+    }
+
+
+    /* ================================================= */
+    /* FORM STYLING */
+    /* ================================================= */
+    .news-form {
+        display: grid;
+        grid-template-columns: 1fr; /* Mặc định 1 cột */
+        gap: 20px; /* Khoảng cách giữa các nhóm form */
+    }
+
+    .form-group {
+        margin-bottom: 0; /* Đã dùng gap nên bỏ margin */
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #1a2a47; /* Xanh Navy cho Label */
+        font-size: 15px;
+    }
+
+    .news-form input[type="text"],
+    .news-form input[type="date"],
+    .news-form input[type="number"],
+    .news-form select,
+    .news-form textarea {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #ced4da;
+        border-radius: 8px;
+        font-size: 15px;
+        color: #495057;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .news-form input:focus,
+    .news-form select:focus,
+    .news-form textarea:focus {
+        border-color: #007bff; /* Xanh dương khi focus */
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+
+    .news-form textarea {
+        resize: vertical;
+        min-height: 150px;
+    }
+
+    /* Input file (cần thêm class form-control để đẹp hơn) */
+    .news-form input[type="file"].form-control {
+        padding: 10px 15px;
+        background-color: #f8f9fa;
+        cursor: pointer;
+    }
+
+    /* Nút Submit */
+    .submit-btn {
+        display: block;
+        width: 100%; /* Chiếm toàn bộ chiều ngang */
+        padding: 14px 25px;
+        margin-top: 10px;
+        background: #007bff; /* Xanh dương chuyên nghiệp */
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.3s, box-shadow 0.3s;
+    }
+    .submit-btn:hover {
+        background: #0056b3;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    /* Responsive (Tuỳ chọn) */
+    @media (min-width: 768px) {
+        /* Tạo bố cục 2 cột cho các trường đơn */
+        .news-form {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        /* Gộp Tiêu đề và Nội dung thành 1 cột lớn */
+        #title,
+        #category,
+        #content,
+        .submit-btn {
+            grid-column: 1 / -1; /* Chiếm hết 2 cột */
+        }
+
+        /* Cột ảnh hiện tại */
+        .form-group:has(img) {
+             grid-column: 1 / 2;
+        }
+    }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container">
+        <div class="logo">ABC <span>News</span></div>
+<nav class="menu">
+    <a href="${pageContext.request.contextPath}/index"
+       class="${fn:endsWith(pageContext.request.requestURI, '/index') ? 'active' : ''}">Trang chủ</a>
+
+    <%-- KHỐI CODE ĐÃ SỬA: TỰ ĐỘNG TẠO MENU DỰA TRÊN CATEGORIES --%>
+    <%-- Bạn cần đảm bảo biến ${categories} đã được truyền từ Servlet vào Request Scope --%>
+    <c:forEach var="c" items="${categories}">
+        <a href="${pageContext.request.contextPath}/category?name=${c.name}"
+           class="${fn:contains(pageContext.request.requestURI, c.name) ? 'active' : ''}">
+            ${c.name}
+        </a>
+    </c:forEach>
+
+            <c:choose>
+                <c:when test="<%= isAdmin %>">
+                    <a href="${pageContext.request.contextPath}/admin/manage_all_news"
+                       class="${fn:contains(pageContext.request.requestURI, '/admin') ? 'active' : ''}">
+                        Quản trị
+                    </a>
+                </c:when>
+                <c:otherwise>
+                    <a href="${pageContext.request.contextPath}/reporter"
+                       class="${fn:contains(pageContext.request.requestURI, '/reporter') ? 'active' : ''}">
+                        Quản lý tin
+                    </a>
+                </c:otherwise>
+            </c:choose>
+        </nav>
+
+        <div class="header-actions">
+            <span class="user-info">Xin chào, <strong><%= fullname %></strong></span>
+            <a href="${pageContext.request.contextPath}/logout" class="logout-btn">Đăng xuất</a>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <section class="center-col">
+        <h2>
+            <c:choose>
+                <c:when test="${news != null}">Sửa Tin Tức</c:when>
+                <c:otherwise>Thêm Tin Tức Mới</c:otherwise>
+            </c:choose>
+        </h2>
+
+        <form action="${pageContext.request.contextPath}/admin/add_edit_news"
+              method="post"
+              enctype="multipart/form-data"
+              class="news-form">
+
+            <input type="hidden" name="id" value="${news.id}">
+
+            <div class="form-group">
+                <label for="title">Tiêu đề</label>
+                <input type="text" id="title" name="title"
+                       value="${news.title}" placeholder="Nhập tiêu đề tin" required>
+            </div>
+
+            <div class="form-group">
+                <label for="category">Thể loại</label>
+                <select name="categoryId" id="category" required>
+                    <option value="">-- Chọn thể loại --</option>
+                    
+               
+                    
+                    <c:forEach var="c" items="${categories}">
+                        <option value="${c.id}"
+                            <c:if test="${news != null && news.categoryId == c.id}">selected</c:if>>
+                            ${c.name}
+                        </option>
+                    </c:forEach>
+                    
+                
+                    
+                    <option value="1" <c:if test="${news != null && news.categoryId == 1}">selected</c:if>>Văn hóa</option>
+                    <option value="2" <c:if test="${news != null && news.categoryId == 2}">selected</c:if>>Pháp luật</option>
+                    <option value="3" <c:if test="${news != null && news.categoryId == 3}">selected</c:if>>Thể thao</option>
+                  
+                    
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="image">Hình ảnh</label>
+                <input type="file" id="image" name="image" accept="image/*"
+                       class="form-control"
+                       <c:if test="${news == null}">required</c:if>>
+
+                <c:if test="${news != null && news.image != null}">
+                    <input type="hidden" name="oldImage" value="${news.image}">
+                    <div style="margin-top:10px;">
+                        <p>Ảnh hiện tại:</p>
+                        <img src="${pageContext.request.contextPath}/uploads/${news.image}"
+                             alt="Ảnh tin tức" width="150"
+                             style="border-radius:8px; box-shadow:0 0 5px rgba(0,0,0,0.2);">
+                    </div>
+                </c:if>
+            </div>
+
+            <div class="form-group">
+                <label for="content">Nội dung</label>
+                <textarea id="content" name="content" rows="6"
+                          placeholder="Nhập nội dung tin" required>${news.content}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="postedDate">Ngày đăng</label>
+                <input type="date" id="postedDate" name="postedDate"
+                       value="${news.postedDate}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="author">Tác giả</label>
+                <input type="text" id="author" value="<%= fullname %>" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="position">Vị trí hiển thị</label>
+                <input type="number" id="position" name="position" min="1"
+                       value="${news.position}" placeholder="Nhập thứ tự hiển thị (VD: 1, 2, 3)">
+            </div>
+
+            <input type="hidden" name="viewCount"
+                   value="${news.viewCount != null ? news.viewCount : 0}">
+
+            <button type="submit" class="submit-btn">
+                <c:choose>
+                    <c:when test="${news != null}">Cập nhật tin</c:when>
+                    <c:otherwise>Lưu tin mới</c:otherwise>
+                </c:choose>
+            </button>
+        </form>
+    </section>
+</div>
+
+<%@ include file="../includes/news_index_footer.jsp" %>
+
+</body>
+</html>

@@ -1,0 +1,370 @@
+<%@ page contentType="text/html; charset=UTF-8" language="java" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ page import="Entity.User" %>
+
+<%
+    User user = (User) session.getAttribute("user");
+    String fullname = (user != null && user.getFullname() != null) ? user.getFullname() : "Quản trị viên";
+%>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ABC News - Quản lý tất cả tin tức.">
+    <meta name="keywords" content="quản lý tin tức, quản trị, ABC News">
+    <meta name="author" content="ABC News">
+    <title>ABC News - Quản lý Tin tức (Modal)</title>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+    <style>
+/* ================================================= */
+/* CƠ SỞ CHUNG (Đồng bộ với Quản lý người dùng) */
+/* ================================================= */
+body {
+    background-color: #eef1f5;
+    color: #495057;
+    font-family: 'Roboto', sans-serif;
+}
+body.modal-open { overflow: hidden; }
+
+/* HEADER & MENU */
+.site-header { background-color: #1a2a47; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+.logo { color: #ffffff; font-weight: 700; }
+.logo span { color: #fcc419; }
+.logout-btn { background: #e53935; color: white; }
+
+/* CỘT NỘI DUNG CHÍNH */
+.center-col {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-top: 15px;
+}
+.center-col h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a2a47;
+    margin-bottom: 25px;
+    border-bottom: 3px solid #fcc419;
+    padding-bottom: 10px;
+}
+
+/* THANH HÀNH ĐỘNG & NÚT THÊM */
+.action-bar { margin-bottom: 20px; }
+.action-bar .add-news-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #1a2a47;
+    color: #FFFFFF;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 700;
+    transition: background 0.3s, transform 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.action-bar .add-news-btn:hover {
+    background: #273e63;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* BẢNG & NÚT HÀNH ĐỘNG TRONG BẢNG (Giữ nguyên từ code Quản lý Tin tức) */
+.news-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.news-table thead th {
+    background: #1a2a47;
+    color: #FFFFFF;
+    padding: 15px 10px;
+    text-align: left;
+    font-weight: 600;
+}
+.news-table tbody tr { border-bottom: 1px solid #e9ecef; }
+.news-table tbody tr:hover { background: #f1f4f8; }
+.news-table td { padding: 12px 10px; vertical-align: middle; color: #495057; }
+
+.action-btn {
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #fff;
+    line-height: 1;
+    margin: 3px 0;
+    transition: all 0.2s ease-in-out;
+}
+.edit-btn { background-color: #007bff; }
+.edit-btn:hover { background-color: #0056b3; }
+.delete-btn { background-color: #e53935; }
+.delete-btn:hover { background-color: #c62828; }
+.feature-btn { background-color: #fcc419; color: #1a2a47; font-weight: 700; }
+.feature-btn:hover { background-color: #ffbe00; }
+.email-btn { background-color: #1a2a47; }
+.email-btn:hover { background-color: #273e63; }
+.approve-btn { background-color: #28a745; }
+.approve-btn:hover { background-color: #1e7e34; }
+
+/* ================================================= */
+/* MODAL (Đã điều chỉnh kích thước cho Form Tin tức) */
+/* ================================================= */
+.custom-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(26, 42, 71, 0.8);
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    overflow-y: auto;
+}
+
+.custom-modal-content {
+    background: #fff;
+    border-radius: 12px;
+    padding: 30px;
+    width: 90%; /* Chiếm 90% màn hình */
+    max-width: 900px; /* Tăng kích thước tối đa cho form tin tức */
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    position: relative;
+    animation: fadeIn 0.3s ease-in-out;
+    margin: 40px 15px;
+}
+
+.custom-close-btn {
+    position: absolute; top: 12px; right: 18px;
+    font-size: 30px;
+    font-weight: 300;
+    color: #adb5bd;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+.custom-close-btn:hover { color: #dc3545; }
+
+.custom-modal-content h2 {
+    color: #1a2a47;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 10px;
+}
+
+/* FORM STYLING (Lấy từ Form Add/Edit News đã cung cấp) */
+.news-form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Bố cục 2 cột mặc định */
+    gap: 20px;
+}
+.news-form .full-width {
+    grid-column: 1 / -1; /* Các trường chiếm toàn bộ chiều rộng */
+}
+.form-group { margin-bottom: 0; }
+.form-group label {
+    display: block; margin-bottom: 8px; font-weight: 500; color: #1a2a47; font-size: 15px;
+}
+.news-form input:not([type="file"]), .news-form select, .news-form textarea {
+    width: 100%; padding: 10px 15px; border: 1px solid #ced4da; border-radius: 6px; font-size: 15px;
+    box-sizing: border-box; /* Quan trọng cho modal */
+}
+.submit-btn {
+    display: block; width: 100%; padding: 14px 25px; margin-top: 10px;
+    background: #007bff; color: white; border: none; border-radius: 8px;
+    font-size: 18px; font-weight: 700; cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    grid-column: 1 / -1; /* Chiếm hết 2 cột */
+}
+.submit-btn:hover { background: #0056b3; }
+.image-preview { margin-top:10px; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+</style>
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="logo">ABC <span>News</span></div>
+
+            <nav class="menu">
+                <a href="${pageContext.request.contextPath}/index">Trang chủ</a>
+                <a href="${pageContext.request.contextPath}/category?name=Văn hóa">Văn hóa</a>
+                <a href="${pageContext.request.contextPath}/category?name=Pháp luật">Pháp luật</a>
+                <a href="${pageContext.request.contextPath}/category?name=Thể thao">Thể thao</a>
+                <a href="${pageContext.request.contextPath}/admin" class="active">Quản trị</a>
+            </nav>
+
+            <div class="header-actions">
+                Xin chào <strong><%= fullname %></strong>
+                <a href="${pageContext.request.contextPath}/logout" class="logout-btn">Đăng xuất</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <section class="center-col">
+            <h2>Quản lý tất cả tin tức</h2>
+
+            <div class="action-bar">
+                <a href="#" class="add-news-btn" onclick="openAddNewsModal()">+ Thêm tin mới</a>
+            </div>
+
+            <table class="news-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Tiêu đề</th>
+                        <th style="width: 15%;">Loại tin</th>
+                        <th style="width: 15%;">Phóng viên</th>
+                        <th style="width: 10%;">Ngày đăng</th>
+                        <th style="width: 10%;">Trạng thái</th>
+                        <th style="width: 25%;">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <c:forEach var="n" items="${newsList}">
+                        <tr id="news-row-${n.id}">
+                            <td>${n.title}</td>
+                            <td>${n.categoryName}</td>
+                            <td>${n.authorName}</td>
+                            <td>${n.postedDate}</td>
+                            <td>${n.status}</td>
+                            <td>
+                                <a href="#"
+                                   class="action-btn edit-btn"
+                                   onclick="openEditNewsModal(this)"
+                                   data-id="${n.id}"
+                                   data-title="${fn:escapeXml(n.title)}"
+                                   data-categoryid="${n.categoryId}"
+                                   data-image="${n.image}"
+                                   data-content="${fn:escapeXml(n.content)}"
+                                   data-posteddate="${n.postedDate}"
+                                   data-position="${n.position}"
+                                   data-viewcount="${n.viewCount}"
+                                   data-author="${n.authorName}">Sửa</a>
+
+                                <a href="${pageContext.request.contextPath}/admin/delete_news?id=${n.id}" class="action-btn delete-btn"
+                                   onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+
+                                <c:if test="${!n.home}">
+                                    <a href="${pageContext.request.contextPath}/admin/feature_news?id=${n.id}" class="action-btn feature-btn">Đưa lên trang chủ</a>
+                                </c:if>
+
+                                <c:if test="${n.status eq 'Đã duyệt' && !n.emailed}">
+                                    <a href="${pageContext.request.contextPath}/admin/send_email?id=${n.id}" class="action-btn email-btn">Gửi email</a>
+                                </c:if>
+
+                                <c:if test="${n.status ne 'Đã duyệt'}">
+                                    <a href="${pageContext.request.contextPath}/admin/approve_news?id=${n.id}" class="action-btn approve-btn">Duyệt</a>
+                                </c:if>
+                            </td>
+                        </tr>
+                    </c:forEach>
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    
+
+    <%-- @ include file="../includes/news_index_footer.jsp" --%>
+    <footer style="text-align: center; padding: 20px; background: #1a2a47; color: white; margin-top: 30px;">
+        &copy; 2025 ABC News. Trang Quản lý Tin tức.
+    </footer>
+
+    <script>
+        const MODAL_ID = 'news-modal';
+        const FORM_ID = 'news-form';
+        const CONTEXT_PATH = '${pageContext.request.contextPath}';
+
+        function showModal(title, buttonText) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('submit-button').innerText = buttonText;
+            document.getElementById(MODAL_ID).style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                
+                // Reset form và các trường ẩn/ảnh
+                const form = document.getElementById(FORM_ID);
+                if (form) form.reset();
+                document.getElementById('image').required = false; // Bỏ required cho file input
+                document.getElementById('current-image-preview').style.display = 'none';
+                document.getElementById('preview-img').src = '';
+            }
+        }
+
+        window.onclick = function(event) {
+            if (event.target.id === MODAL_ID) {
+                closeModal(MODAL_ID);
+            }
+        };
+
+        function openAddNewsModal() {
+            closeModal(MODAL_ID); // Đảm bảo reset form trước
+            
+            // Thiết lập chế độ Thêm mới
+            document.getElementById('news-id').value = '';
+            document.getElementById('image').required = true; // Yêu cầu ảnh khi thêm mới
+            
+            showModal('Thêm Tin Tức Mới', 'Lưu tin mới');
+        }
+
+        function openEditNewsModal(element) {
+            closeModal(MODAL_ID); // Đảm bảo reset form trước
+
+            // Lấy dữ liệu từ data-*
+            const id = element.dataset.id;
+            const title = element.dataset.title;
+            const categoryId = element.dataset.categoryid;
+            const image = element.dataset.image;
+            const content = element.dataset.content;
+            const postedDate = element.dataset.posteddate;
+            const position = element.dataset.position;
+            const viewCount = element.dataset.viewcount;
+
+            // Điền dữ liệu vào form
+            document.getElementById('news-id').value = id;
+            document.getElementById('title').value = title;
+            document.getElementById('category').value = categoryId;
+            document.getElementById('content').value = content;
+            document.getElementById('postedDate').value = postedDate;
+            document.getElementById('position').value = position;
+            document.getElementById('view-count').value = viewCount;
+            document.getElementById('old-image').value = image;
+            
+            // Hiển thị ảnh hiện tại
+            if (image) {
+                document.getElementById('preview-img').src = CONTEXT_PATH + '/uploads/' + image;
+                document.getElementById('current-image-preview').style.display = 'block';
+                document.getElementById('image').required = false; // Không yêu cầu chọn lại ảnh
+            } else {
+                document.getElementById('image').required = true; // Yêu cầu ảnh nếu không có ảnh cũ
+            }
+
+            // Thiết lập chế độ Sửa
+            showModal('Sửa Tin Tức', 'Cập nhật tin');
+        }
+    </script>
+</body>
+</html>

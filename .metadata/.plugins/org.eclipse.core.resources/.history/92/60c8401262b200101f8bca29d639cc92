@@ -1,0 +1,422 @@
+<%@ page contentType="text/html; charset=UTF-8" language="java" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ page import="Entity.User" %>
+
+<%
+    // Lấy thông tin người dùng từ session
+    User user = (User) session.getAttribute("user");
+    String fullname = (user != null && user.getFullname() != null) ? user.getFullname() : "Quản trị viên";
+    // Giả định User entity có phương thức isRole() để kiểm tra vai trò Quản trị
+    boolean isAdmin = (user != null && user.isRole());
+
+    // NOTE: Trong thực tế, bạn cần truyền danh sách Categories vào biến ${categories} từ Servlet.
+    // Dưới đây là dữ liệu giả lập để hiển thị bảng (chỉ phục vụ mục đích code giao diện)
+    // Nếu bạn đang dùng List<Entity.Category>, hãy đảm bảo biến đó là ${categories}
+%>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ABC News - Quản lý thể loại tin tức.">
+    <meta name="keywords" content="quản lý thể loại, quản trị, ABC News">
+    <meta name="author" content="ABC News">
+    <title>ABC News - Quản lý Thể loại Tin tức</title>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+    
+    <style>
+/* ================================================= */
+/* CƠ SỞ CHUNG (Đồng bộ với các trang Admin khác) */
+/* ================================================= */
+body {
+    background-color: #eef1f5; /* Nền xám nhạt hiện đại */
+    color: #495057; /* Màu chữ chính */
+    font-family: 'Roboto', sans-serif;
+}
+body.modal-open { overflow: hidden; }
+
+/* HEADER & MENU (Giả định đã có CSS chung) */
+.site-header { background-color: #1a2a47; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+.logo { color: #ffffff; font-weight: 700; }
+.logo span { color: #fcc419; }
+.logout-btn { background: #e53935; color: white; }
+
+/* CỘT NỘI DUNG CHÍNH */
+.center-col {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-top: 15px;
+}
+.center-col h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a2a47; /* Xanh Navy Sâu */
+    margin-bottom: 25px;
+    border-bottom: 3px solid #fcc419; /* Vàng ấm nổi bật */
+    padding-bottom: 10px;
+}
+
+/* ================================================= */
+/* THANH HÀNH ĐỘNG & NÚT THÊM (Đồng bộ) */
+/* ================================================= */
+.action-bar { margin-bottom: 20px; }
+.action-bar .add-news-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: #1a2a47; /* Xanh Navy Sâu */
+    color: #FFFFFF;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 700;
+    transition: background 0.3s, transform 0.3s;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.action-bar .add-news-btn:hover {
+    background: #273e63;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ================================================= */
+/* BẢNG & NÚT HÀNH ĐỘNG TRONG BẢNG */
+/* ================================================= */
+.news-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.news-table thead th {
+    background: #1a2a47; /* Xanh Navy Sâu */
+    color: #FFFFFF;
+    padding: 15px 10px;
+    text-align: left;
+    font-weight: 600;
+}
+.news-table tbody tr { border-bottom: 1px solid #e9ecef; }
+.news-table tbody tr:hover { background: #f1f4f8; }
+.news-table td { padding: 12px 10px; vertical-align: middle; color: #495057; }
+
+/* Nút Sửa */
+.edit-btn {
+    background-color: #007bff; /* Xanh dương tiêu chuẩn */
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #fff;
+    margin-right: 5px;
+    transition: all 0.2s ease-in-out;
+}
+.edit-btn:hover { background-color: #0056b3; }
+
+/* Nút Xóa */
+.delete-btn {
+    background-color: #e53935; /* Đỏ dịu */
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.2s ease-in-out;
+}
+.delete-btn:hover { background-color: #c62828; }
+
+/* ================================================= */
+/* MODAL (Popup) - Đã thay đổi custom- thành đồng bộ */
+/* ================================================= */
+.custom-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(26, 42, 71, 0.8); /* Xanh Navy mờ */
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    overflow-y: auto;
+}
+
+.custom-modal-content {
+    background: #fff;
+    border-radius: 12px;
+    padding: 30px;
+    width: 100%;
+    max-width: 450px; /* Vừa phải cho form thể loại */
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    position: relative;
+    animation: fadeIn 0.3s ease-in-out;
+    margin: 40px 15px;
+}
+
+.custom-close-btn {
+    position: absolute; top: 12px; right: 18px;
+    font-size: 30px;
+    font-weight: 300;
+    color: #adb5bd;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+.custom-close-btn:hover { color: #dc3545; }
+
+.custom-modal-content h2 {
+    color: #1a2a47;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 10px;
+}
+
+/* Form */
+.custom-form-group {
+    text-align: left;
+    margin-bottom: 15px;
+}
+
+.custom-form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 15px;
+    color: #1a2a47;
+}
+
+.custom-form-group input,
+.custom-form-group textarea,
+.custom-form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    font-size: 15px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.custom-form-group input:focus,
+.custom-form-group textarea:focus,
+.custom-form-group select:focus {
+    border-color: #fcc419;
+    box-shadow: 0 0 0 0.2rem rgba(252, 196, 25, 0.25);
+    outline: none;
+}
+
+/* Nút Submit */
+.custom-submit-btn {
+    width: 100%;
+    padding: 12px 20px;
+    background: #fcc419;
+    color: #1a2a47;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+    box-shadow: 0 4px 8px rgba(252, 196, 25, 0.3);
+    margin-top: 10px;
+}
+.custom-submit-btn:hover {
+    background: #ffbe00;
+    transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+</style>
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="logo">ABC <span>News</span></div>
+
+            <nav class="menu">
+                <a href="${pageContext.request.contextPath}/index">Trang chủ</a>
+                <a href="${pageContext.request.contextPath}/category?name=Văn hóa">Văn hóa</a>
+                <a href="${pageContext.request.contextPath}/category?name=Pháp luật">Pháp luật</a>
+                <a href="${pageContext.request.contextPath}/category?name=Thể thao">Thể thao</a>
+                <a href="${pageContext.request.contextPath}/admin" class="active">Quản trị</a>
+            </nav>
+
+            <div class="header-actions">
+                Xin chào <strong><%= fullname %></strong>
+                <a href="${pageContext.request.contextPath}/logout" class="logout-btn">Đăng xuất</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <section class="center-col">
+            <h2>Quản lý Thể loại Tin tức</h2>
+
+            <div class="action-bar">
+                <a href="#add-category" class="add-news-btn" onclick="showModal('add-category-modal')">+ Thêm thể loại</a>
+            </div>
+
+            <table class="news-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">ID</th>
+                        <th style="width: 25%;">Tên thể loại</th>
+                        <th style="width: 50%;">Mô tả</th>
+                        <th style="width: 20%;">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+    <c:forEach var="c" items="${categories}">
+        <tr>
+            <td>${c.id}</td>
+            <td>${fn:escapeXml(c.name)}</td>
+            <td>${fn:escapeXml(c.description)}</td>
+            <td>
+                <a href="#edit-category"
+                   class="edit-btn"
+                   data-id="${c.id}"
+                   data-name="${fn:escapeXml(c.name)}"
+                   data-description="${fn:escapeXml(c.description)}"
+                   onclick="openEditCategory(this)">Sửa</a>
+                
+                <a href="${pageContext.request.contextPath}/admin/delete_category?id=${c.id}"
+                   class="delete-btn"
+                   onclick="return confirm('Bạn có chắc muốn xóa thể loại ${fn:escapeXml(c.name)} này? Việc này có thể ảnh hưởng đến các tin tức liên quan.')">Xóa</a>
+            </td>
+        </tr>
+    </c:forEach>
+    <c:if test="${empty categories}">
+        <tr>
+            <td>1</td>
+            <td>Văn hóa</td>
+            <td>Các tin tức và bài viết chuyên sâu về đời sống văn hóa, nghệ thuật, và truyền thống.</td>
+            <td>
+                <a href="#edit-category" class="edit-btn" data-id="1" data-name="Văn hóa" data-description="Các tin tức và bài viết chuyên sâu về đời sống văn hóa, nghệ thuật, và truyền thống." onclick="openEditCategory(this)">Sửa</a>
+                <a href="#" class="delete-btn" onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+            </td>
+        </tr>
+         <tr>
+            <td>2</td>
+            <td>Pháp luật</td>
+            <td>Cập nhật các vụ án, luật mới, và phân tích các vấn đề pháp lý trong xã hội.</td>
+            <td>
+                <a href="#edit-category" class="edit-btn" data-id="2" data-name="Pháp luật" data-description="Cập nhật các vụ án, luật mới, và phân tích các vấn đề pháp lý trong xã hội." onclick="openEditCategory(this)">Sửa</a>
+                <a href="#" class="delete-btn" onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+            </td>
+        </tr>
+    </c:if>
+</tbody>
+            </table>
+        </section>
+    </div>
+
+    <div id="add-category-modal" class="custom-modal">
+        <div class="custom-modal-content">
+            <span class="custom-close-btn" onclick="closeModal('add-category-modal')">&times;</span>
+            <h2>Thêm Thể loại Mới</h2>
+            <form action="${pageContext.request.contextPath}/admin/add_category" method="post">
+                
+                <div class="custom-form-group">
+                    <label for="add-name">Tên thể loại</label>
+                    <input type="text" id="add-name" name="name" placeholder="Ví dụ: Chính trị, Công nghệ" required>
+                </div>
+                <div class="custom-form-group">
+                    <label for="add-description">Mô tả ngắn</label>
+                    <textarea id="add-description" name="description" rows="3" placeholder="Mô tả về nội dung của thể loại này" required></textarea>
+                </div>
+                
+                <button type="submit" class="custom-submit-btn">Thêm thể loại</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-category-modal" class="custom-modal">
+        <div class="custom-modal-content">
+            <span class="custom-close-btn" onclick="closeModal('edit-category-modal')">&times;</span>
+            <h2>Sửa Thể loại</h2>
+            <form action="${pageContext.request.contextPath}/admin/edit_category" method="post">
+                <input type="hidden" name="id" id="edit-category-id">
+                
+                <div class="custom-form-group">
+                    <label for="edit-name">Tên thể loại</label>
+                    <input type="text" id="edit-name" name="name" required>
+                </div>
+                <div class="custom-form-group">
+                    <label for="edit-description">Mô tả ngắn</label>
+                    <textarea id="edit-description" name="description" rows="3" required></textarea>
+                </div>
+                
+                <button type="submit" class="custom-submit-btn">Lưu thay đổi</button>
+            </form>
+        </div>
+    </div>
+
+    <%-- @ include file="../includes/news_index_footer.jsp" --%>
+    <footer style="text-align: center; padding: 20px; background: #1a2a47; color: white; margin-top: 30px;">
+        &copy; 2025 ABC News. Trang Quản trị Thể loại.
+    </footer>
+
+    <script>
+        function showModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+                document.body.classList.add('modal-open');
+                
+                // Reset form khi mở modal Add
+                if (modalId === 'add-category-modal') {
+                    const form = modal.querySelector('form');
+                    if (form) form.reset();
+                }
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                const form = modal.querySelector('form');
+                if (form) form.reset();
+            }
+        }
+
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('custom-modal');
+            for (let modal of modals) {
+                if (event.target === modal) {
+                    closeModal(modal.id); // Dùng hàm closeModal để đảm bảo form được reset
+                }
+            }
+        };
+
+        function openEditCategory(element) {
+            const modal = document.getElementById('edit-category-modal');
+            if (!modal) return;
+
+            // Lấy dữ liệu từ thuộc tính data-*
+            document.getElementById('edit-category-id').value = element.dataset.id || '';
+            document.getElementById('edit-name').value = element.dataset.name || '';
+            document.getElementById('edit-description').value = element.dataset.description || '';
+
+            modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+    </script>
+</body>
+</html>
